@@ -1016,7 +1016,7 @@ function openReservationDetails(reservationId) {
         ${renderDetailItem("학과", reservation.department)}
         ${renderDetailItem("학번", reservation.student_id)}
         ${renderDetailItem(
-          "담당 교수님",
+          "종합설계 지도교수님",
           formatProfessorName(reservation.graduation_professor)
         )}
         ${renderDetailItem(

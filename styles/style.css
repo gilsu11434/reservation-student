@@ -413,6 +413,7 @@ textarea:focus {
 .professor-name-input {
   display: flex;
   overflow: hidden;
+  width: min(100%, 175px);
   min-width: 0;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -430,6 +431,8 @@ textarea:focus {
 }
 
 .professor-name-input input {
+  flex: 1 1 88px;
+  width: 88px;
   min-width: 0;
   border: 0;
   border-radius: 0;

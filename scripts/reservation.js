@@ -1068,7 +1068,7 @@ document
 
     if (!date || !startTime || !endTime || !graduationProfessor) {
       message.textContent =
-        "예약 날짜, 이용 시간, 담당 교수님 이름을 모두 입력해 주세요.";
+        "예약 날짜, 이용 시간, 종합설계 지도교수님 이름을 모두 입력해 주세요.";
       message.classList.remove("success");
       message.classList.add("error");
       return;
@@ -1076,7 +1076,7 @@ document
 
     if (!isValidProfessorName(graduationProfessor)) {
       message.textContent =
-        "담당 교수님은 ‘교수님’을 제외한 이름만 입력해 주세요.";
+        "종합설계 지도교수님은 ‘교수님’을 제외한 이름만 입력해 주세요.";
       message.classList.remove("success");
       message.classList.add("error");
       graduationProfessorInput.focus();
@@ -1279,7 +1279,7 @@ document
       });
 
       message.textContent =
-        `담당 교수님 저장 오류: ${professorError.message}`;
+        `종합설계 지도교수님 저장 오류: ${professorError.message}`;
       message.classList.add("error");
       return;
     }

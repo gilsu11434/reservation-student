@@ -334,7 +334,7 @@ function renderReservations() {
               <strong>${reservation.headcount}명 · ${submittedCertificateCount}/${reservation.headcount}건</strong>
             </div>
             <div class="meta-item">
-              <span>담당 교수님</span>
+              <span>종합설계 지도교수님</span>
               <strong>${escapeHtml(formatProfessorName(reservation.graduation_professor))}</strong>
             </div>
           </div>
