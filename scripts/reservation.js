@@ -33,6 +33,11 @@ const timeSlotMessage = document.getElementById("time-slot-message");
 const graduationProfessorInput = document.getElementById(
   "graduation-professor"
 );
+const equipmentInput = document.getElementById("equipment");
+const purposeInput = document.getElementById("purpose");
+const reservationMessage = document.getElementById(
+  "reservation-message"
+);
 
 let bookedSlots = [];
 let bookedSlotsLoaded = false;
@@ -93,6 +98,35 @@ graduationProfessorInput.addEventListener("blur", () => {
   );
 });
 
+[
+  {
+    input: equipmentInput,
+    emptyMessage:
+      "사용할 장비를 입력해 주세요. 사용 장비가 없다면 ‘없음’이라고 입력해 주세요."
+  },
+  {
+    input: purposeInput,
+    emptyMessage: "사용 목적을 입력해 주세요."
+  }
+].forEach(({ input, emptyMessage }) => {
+  input.addEventListener("input", () => {
+    input.setCustomValidity("");
+    input.removeAttribute("aria-invalid");
+  });
+
+  input.addEventListener("invalid", () => {
+    if (input.value.trim()) {
+      return;
+    }
+
+    input.setCustomValidity(emptyMessage);
+    input.setAttribute("aria-invalid", "true");
+    reservationMessage.textContent = emptyMessage;
+    reservationMessage.classList.remove("success");
+    reservationMessage.classList.add("error");
+  });
+});
+
 function sanitizeProfessorName(value) {
   return String(value ?? "")
     .replace(/\s*교수님?\s*$/g, "")
@@ -112,6 +146,20 @@ function isValidProfessorName(value) {
     Array.from(value).length <= 30 &&
     /^[가-힣a-zA-Z·ㆍ ]+$/.test(value)
   );
+}
+
+function isValidDescriptiveText(value) {
+  const completeLetters = value.match(/[가-힣a-zA-Z]/g) ?? [];
+
+  return completeLetters.length >= 2;
+}
+
+function showReservationFieldError(input, text) {
+  reservationMessage.textContent = text;
+  reservationMessage.classList.remove("success");
+  reservationMessage.classList.add("error");
+  input.setAttribute("aria-invalid", "true");
+  input.focus();
 }
 
 calendarToggle.addEventListener("click", () => {
@@ -1050,6 +1098,41 @@ document
       return;
     }
 
+    const equipment = equipmentInput.value.trim();
+    const purpose = purposeInput.value.trim();
+
+    if (!equipment) {
+      showReservationFieldError(
+        equipmentInput,
+        "사용할 장비를 입력해 주세요. 사용 장비가 없다면 ‘없음’이라고 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidDescriptiveText(equipment)) {
+      showReservationFieldError(
+        equipmentInput,
+        "사용할 장비에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 컴퓨터, 3D 프린터, 없음)"
+      );
+      return;
+    }
+
+    if (!purpose) {
+      showReservationFieldError(
+        purposeInput,
+        "사용 목적을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidDescriptiveText(purpose)) {
+      showReservationFieldError(
+        purposeInput,
+        "사용 목적에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 종합설계 작품 제작)"
+      );
+      return;
+    }
+
     const date =
       document.getElementById("reservation-date").value;
 
@@ -1228,13 +1311,9 @@ document
 
         p_headcount: participants.length,
 
-        p_purpose:
-          document.getElementById("purpose")
-            .value.trim(),
+        p_purpose: purpose,
 
-        p_equipment:
-          document.getElementById("equipment")
-            .value.trim(),
+        p_equipment: equipment,
 
         p_start_at: startAt,
         p_end_at: endAt,
