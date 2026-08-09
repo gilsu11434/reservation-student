@@ -163,6 +163,15 @@ reservationDetailContent.addEventListener("click", async (event) => {
     return;
   }
 
+  const certificateBulkDecisionButton = event.target.closest(
+    "[data-certificate-bulk-decision]"
+  );
+
+  if (certificateBulkDecisionButton) {
+    await reviewAllCertificates(certificateBulkDecisionButton);
+    return;
+  }
+
   const reportDecisionButton = event.target.closest(
     "[data-report-decision]"
   );
@@ -342,14 +351,6 @@ function getPathExtension(path) {
 }
 
 function getCertificateStatus(member) {
-  if (!member.safety_certificate_path) {
-    return {
-      status: "missing",
-      label: "미제출",
-      className: "status-cancelled"
-    };
-  }
-
   const status = member.certificate_review_status ??
     (member.certificate_verified ? "approved" : "pending");
   const statuses = {
@@ -366,6 +367,14 @@ function getCertificateStatus(member) {
       className: "status-cancelled"
     }
   };
+
+  if (!member.safety_certificate_path && status === "pending") {
+    return {
+      status: "missing",
+      label: "미제출",
+      className: "status-cancelled"
+    };
+  }
 
   return {
     status,
@@ -435,6 +444,80 @@ function getCertificateUploadSummary(members) {
   };
 }
 
+function renderCertificateReviewActions(
+  reservationId,
+  member,
+  certificateStatus
+) {
+  if (certificateStatus.status === "approved") {
+    return `
+      <button
+        type="button"
+        class="danger-button admin-download-button"
+        data-reservation-id="${escapeHtml(reservationId)}"
+        data-member-id="${escapeHtml(member.id)}"
+        data-certificate-decision="pending"
+      >승인 취소</button>
+    `;
+  }
+
+  return `
+    ${certificateStatus.status !== "rejected"
+      ? `
+        <button
+          type="button"
+          class="danger-button admin-download-button"
+          data-reservation-id="${escapeHtml(reservationId)}"
+          data-member-id="${escapeHtml(member.id)}"
+          data-certificate-decision="rejected"
+        >반려</button>
+      `
+      : ""}
+    <button
+      type="button"
+      class="admin-download-button"
+      data-reservation-id="${escapeHtml(reservationId)}"
+      data-member-id="${escapeHtml(member.id)}"
+      data-certificate-decision="approved"
+    >승인</button>
+  `;
+}
+
+function renderReportReviewActions(
+  reservationId,
+  reviewStatus,
+  includeReject = true
+) {
+  if (reviewStatus === "approved") {
+    return `
+      <button
+        type="button"
+        class="danger-button"
+        data-reservation-id="${escapeHtml(reservationId)}"
+        data-report-decision="pending"
+      >승인 취소</button>
+    `;
+  }
+
+  return `
+    ${includeReject && reviewStatus !== "rejected"
+      ? `
+        <button
+          type="button"
+          class="danger-button"
+          data-reservation-id="${escapeHtml(reservationId)}"
+          data-report-decision="rejected"
+        >이용확인서 반려</button>
+      `
+      : ""}
+    <button
+      type="button"
+      data-reservation-id="${escapeHtml(reservationId)}"
+      data-report-decision="approved"
+    >이용확인서 승인</button>
+  `;
+}
+
 function renderDetailItem(label, value, className = "") {
   return `
     <div class="admin-detail-item${className ? ` ${className}` : ""}">
@@ -499,18 +582,25 @@ async function reviewCertificate(button) {
   const memberId = button.dataset.memberId;
   const reservationId = button.dataset.reservationId;
   const decision = button.dataset.certificateDecision;
-  const actionLabel = decision === "approved" ? "승인" : "반려";
+  const actionLabels = {
+    approved: "승인",
+    rejected: "반려",
+    pending: "승인 취소"
+  };
+  const actionLabel = actionLabels[decision] ?? "처리";
 
   if (!confirm(`이 수료증을 ${actionLabel}하시겠습니까?`)) {
     return;
   }
 
-  const note = prompt(
-    decision === "approved"
-      ? "관리자 메모가 있으면 입력해 주세요. (선택)"
-      : "반려 사유를 입력해 주세요.",
-    ""
-  );
+  const note = decision === "pending"
+    ? ""
+    : prompt(
+      decision === "approved"
+        ? "관리자 메모가 있으면 입력해 주세요. (선택)"
+        : "반려 사유를 입력해 주세요.",
+      ""
+    );
 
   if (note === null) {
     return;
@@ -529,6 +619,38 @@ async function reviewCertificate(button) {
       p_member_id: memberId,
       p_decision: decision,
       p_note: note.trim() || null
+    }
+  );
+
+  if (error) {
+    showMessage(`수료증 ${actionLabel} 오류: ${error.message}`, true);
+    button.disabled = false;
+    return;
+  }
+
+  await loadReservations();
+  openReservationDetails(reservationId);
+}
+
+async function reviewAllCertificates(button) {
+  const reservationId = button.dataset.reservationId;
+  const decision = button.dataset.certificateBulkDecision;
+  const actionLabel = decision === "approved"
+    ? "전체 승인"
+    : "전체 승인 취소";
+
+  if (!confirm(`이 예약의 참여자 수료증을 ${actionLabel}하시겠습니까?`)) {
+    return;
+  }
+
+  button.disabled = true;
+
+  const { error } = await supabase.rpc(
+    "admin_review_all_certificates",
+    {
+      p_reservation_id: reservationId,
+      p_decision: decision,
+      p_note: null
     }
   );
 
@@ -584,21 +706,27 @@ async function reviewReservation(button) {
 }
 
 async function reviewUsageReport(button) {
-  const reportId = button.dataset.reportId;
   const reservationId = button.dataset.reservationId;
   const decision = button.dataset.reportDecision;
-  const actionLabel = decision === "approved" ? "승인" : "반려";
+  const actionLabels = {
+    approved: "승인",
+    rejected: "반려",
+    pending: "승인 취소"
+  };
+  const actionLabel = actionLabels[decision] ?? "처리";
 
   if (!confirm(`이 이용확인서를 ${actionLabel}하시겠습니까?`)) {
     return;
   }
 
-  const note = prompt(
-    decision === "approved"
-      ? "관리자 메모가 있으면 입력해 주세요. (선택)"
-      : "반려 사유를 입력해 주세요.",
-    ""
-  );
+  const note = decision === "pending"
+    ? ""
+    : prompt(
+      decision === "approved"
+        ? "관리자 메모가 있으면 입력해 주세요. (선택)"
+        : "반려 사유를 입력해 주세요.",
+      ""
+    );
 
   if (note === null) {
     return;
@@ -612,9 +740,9 @@ async function reviewUsageReport(button) {
   button.disabled = true;
 
   const { error } = await supabase.rpc(
-    "admin_review_usage_report",
+    "admin_review_reservation_report",
     {
-      p_report_id: reportId,
+      p_reservation_id: reservationId,
       p_decision: decision,
       p_note: note.trim() || null
     }
@@ -694,27 +822,14 @@ function renderParticipants(reservation) {
                             data-download-name="${escapeHtml(certificateDownloadName)}"
                             data-file-action="download"
                           >다운로드</button>
-                          ${certificateStatus.status !== "approved"
-                            ? `
-                              <button
-                                type="button"
-                                class="danger-button admin-download-button"
-                                data-reservation-id="${escapeHtml(reservation.id)}"
-                                data-member-id="${escapeHtml(member.id)}"
-                                data-certificate-decision="rejected"
-                              >반려</button>
-                              <button
-                                type="button"
-                                class="admin-download-button"
-                                data-reservation-id="${escapeHtml(reservation.id)}"
-                                data-member-id="${escapeHtml(member.id)}"
-                                data-certificate-decision="approved"
-                              >승인</button>
-                            `
-                            : ""}
                         `
                         : ""
                     }
+                    ${renderCertificateReviewActions(
+                      reservation.id,
+                      member,
+                      certificateStatus
+                    )}
                     ${member.certificate_review_note
                       ? `<small class="admin-certificate-note">관리자 의견: ${escapeHtml(member.certificate_review_note)}</small>`
                       : ""}
@@ -751,9 +866,11 @@ function openReservationDetails(reservationId) {
   const latestReport = getLatestReport(
     reservation.usage_reports
   );
-  const reportStatus = latestReport
-    ? getReportStatusInfo(latestReport.review_status)
-    : null;
+  const reportReviewStatus =
+    reservation.usage_report_review_status ??
+    latestReport?.review_status ??
+    "pending";
+  const reportStatus = getReportStatusInfo(reportReviewStatus);
   const certificateSummary = getCertificateUploadSummary(
     reservation.reservation_members
   );
@@ -811,14 +928,26 @@ function openReservationDetails(reservationId) {
             반려 ${certificateSummary.rejected}명 ·
             미제출 ${certificateSummary.missing}명
           </small>
+          ${certificateSummary.total > 0
+            ? `
+              <div class="admin-upload-status-actions">
+                <button
+                  type="button"
+                  class="${certificateSummary.approved === certificateSummary.total ? "danger-button" : ""}"
+                  data-reservation-id="${escapeHtml(reservation.id)}"
+                  data-certificate-bulk-decision="${certificateSummary.approved === certificateSummary.total ? "pending" : "approved"}"
+                >${certificateSummary.approved === certificateSummary.total ? "수료증 전체 승인 취소" : "수료증 전체 승인"}</button>
+              </div>
+            `
+            : ""}
         </article>
 
         <article class="admin-upload-status-card">
           <div class="admin-upload-status-heading">
             <span>이용확인서</span>
-            ${latestReport
-              ? `<span class="status-badge ${reportStatus.className}">${escapeHtml(reportStatus.label)}</span>`
-              : `<span class="status-badge status-cancelled">미제출</span>`}
+            <span class="status-badge ${reportStatus.className}">
+              ${escapeHtml(reportStatus.label)}
+            </span>
           </div>
           <strong>${latestReport ? "제출 완료" : "미제출"}</strong>
           <small>
@@ -826,6 +955,13 @@ function openReservationDetails(reservationId) {
               ? `제출 일시 ${escapeHtml(formatDateTime(latestReport.created_at))}`
               : "아직 업로드된 이용확인서가 없습니다."}
           </small>
+          <div class="admin-upload-status-actions">
+            ${renderReportReviewActions(
+              reservation.id,
+              reportReviewStatus,
+              false
+            )}
+          </div>
         </article>
       </div>
     </section>
@@ -915,9 +1051,9 @@ function openReservationDetails(reservationId) {
     <section class="admin-detail-section">
       <div class="admin-detail-section-heading">
         <h3>이용확인서</h3>
-        ${latestReport
-          ? `<span class="status-badge ${reportStatus.className}">${escapeHtml(reportStatus.label)}</span>`
-          : `<span class="status-badge status-cancelled">미제출</span>`}
+        <span class="status-badge ${reportStatus.className}">
+          ${escapeHtml(reportStatus.label)}
+        </span>
       </div>
       ${
         latestReport
@@ -957,27 +1093,24 @@ function openReservationDetails(reservationId) {
                   data-download-name="${escapeHtml(reportDownloadName)}"
                   data-file-action="download"
                 >이용확인서 다운로드</button>
-                ${latestReport.review_status !== "approved"
-                  ? `
-                    <button
-                      type="button"
-                      class="danger-button"
-                      data-reservation-id="${escapeHtml(reservation.id)}"
-                      data-report-id="${escapeHtml(latestReport.id)}"
-                      data-report-decision="rejected"
-                    >이용확인서 반려</button>
-                    <button
-                      type="button"
-                      data-reservation-id="${escapeHtml(reservation.id)}"
-                      data-report-id="${escapeHtml(latestReport.id)}"
-                      data-report-decision="approved"
-                    >이용확인서 승인</button>
-                  `
-                  : ""}
+                ${renderReportReviewActions(
+                  reservation.id,
+                  reportReviewStatus
+                )}
               </div>
             </div>
           `
-          : `<p class="admin-detail-empty">제출된 이용확인서가 없습니다.</p>`
+          : `
+            <div class="admin-report-panel">
+              <p class="admin-detail-empty">제출된 이용확인서가 없습니다.</p>
+              <div class="admin-document-toolbar">
+                ${renderReportReviewActions(
+                  reservation.id,
+                  reportReviewStatus
+                )}
+              </div>
+            </div>
+          `
       }
     </section>
   `;

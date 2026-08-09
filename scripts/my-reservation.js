@@ -111,16 +111,20 @@ function getApprovalStatusInfo(status) {
   return statuses[status] ?? statuses.approved;
 }
 
-function getReportStatusInfo(status) {
+function getReportStatusInfo(status, hasFile = true) {
   const statuses = {
     pending: {
-      label: "제출 완료",
-      description: "관리자 확인 대기 중입니다.",
-      className: "status-documents_pending"
+      label: hasFile ? "제출 완료" : "미제출",
+      description: hasFile
+        ? "관리자 확인 대기 중입니다."
+        : "이용확인서가 아직 제출되지 않았습니다.",
+      className: hasFile
+        ? "status-documents_pending"
+        : "status-cancelled"
     },
     approved: {
       label: "승인 완료",
-      description: "관리자가 이용확인서를 승인했습니다.",
+      description: "관리자가 이용확인서 제출 요건을 승인했습니다.",
       className: "status-ready"
     },
     rejected: {
@@ -150,6 +154,14 @@ function getCertificateStatusInfo(member) {
       className: "status-cancelled"
     }
   };
+
+  if (!member.safety_certificate_path && status === "pending") {
+    return {
+      status: "pending",
+      label: "미제출",
+      className: "status-cancelled"
+    };
+  }
 
   return {
     status,
@@ -258,9 +270,14 @@ function renderReservations() {
       );
 
       const latestReport = getLatestReport(reports);
-      const reportStatus = latestReport
-        ? getReportStatusInfo(latestReport.review_status)
-        : null;
+      const reportReviewStatus =
+        reservation.usage_report_review_status ??
+        latestReport?.review_status ??
+        "pending";
+      const reportStatus = getReportStatusInfo(
+        reportReviewStatus,
+        Boolean(latestReport)
+      );
       const approvalStatus = getApprovalStatusInfo(
         reservation.approval_status ?? "approved"
       );
@@ -361,7 +378,7 @@ function renderReservations() {
                                 ${escapeHtml(member.member_email ?? "이메일 미등록")}
                               </span>
                             </div>
-                            ${member.safety_certificate_path
+                            ${member.safety_certificate_path || certificateStatus.status !== "pending"
                               ? `
                                 <span class="status-badge ${certificateStatus.className}">
                                   ${escapeHtml(certificateStatus.label)}
@@ -371,7 +388,8 @@ function renderReservations() {
                             ${certificateStatus.status === "rejected" && member.certificate_review_note
                               ? `<span class="workflow-review-note">관리자 의견: ${escapeHtml(member.certificate_review_note)}</span>`
                               : ""}
-                            ${!member.safety_certificate_path || certificateStatus.status === "rejected"
+                            ${certificateStatus.status !== "approved" &&
+                              (!member.safety_certificate_path || certificateStatus.status === "rejected")
                               ? renderCertificateForm(reservation, member)
                               : ""}
                           </div>
@@ -417,11 +435,31 @@ function renderReservations() {
                       ${latestReport.review_note
                         ? `<span class="workflow-review-note">관리자 의견: ${escapeHtml(latestReport.review_note)}</span>`
                         : ""}
-                      ${latestReport.review_status === "rejected" && usageEnded && reservationApproved
+                      ${reportReviewStatus === "rejected" && usageEnded && reservationApproved
                         ? renderReportForm(reservation, latestReport)
                         : ""}
                     </div>
                   `
+                  : reportReviewStatus === "approved" || reportReviewStatus === "rejected"
+                    ? `
+                      <div class="participant-upload-row">
+                        <div class="participant-upload-name">
+                          <strong>이용확인서</strong>
+                          <span class="status-badge ${reportStatus.className}">
+                            ${escapeHtml(reportStatus.label)}
+                          </span>
+                        </div>
+                        <span class="workflow-status-description">
+                          ${escapeHtml(reportStatus.description)}
+                        </span>
+                        ${reservation.usage_report_review_note
+                          ? `<span class="workflow-review-note">관리자 의견: ${escapeHtml(reservation.usage_report_review_note)}</span>`
+                          : ""}
+                        ${reportReviewStatus === "rejected" && usageEnded && reservationApproved
+                          ? renderReportForm(reservation)
+                          : ""}
+                      </div>
+                    `
                   : !reservationApproved
                     ? `<div class="workflow-state-note">예약 승인 후 이용을 완료하면 제출할 수 있습니다.</div>`
                     : !usageEnded

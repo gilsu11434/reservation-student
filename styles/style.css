@@ -2200,6 +2200,19 @@ input[type="file"]::file-selector-button {
   line-height: 1.6;
 }
 
+.admin-upload-status-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 3px;
+}
+
+.admin-upload-status-actions button {
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
 .admin-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2623,6 +2636,10 @@ input[type="file"]::file-selector-button {
 
   .admin-upload-status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-upload-status-actions button {
+    width: 100%;
   }
 
   .suggestion-list-heading,

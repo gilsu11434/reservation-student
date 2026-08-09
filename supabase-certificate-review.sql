@@ -88,7 +88,7 @@ from public;
 grant execute on function public.save_my_certificate_path(uuid, uuid, text)
 to authenticated;
 
--- 관리자가 제출된 수료증을 승인하거나 반려합니다.
+-- 관리자는 파일 제출 여부와 관계없이 수료증 상태를 승인·반려·승인 취소할 수 있습니다.
 create or replace function public.admin_review_certificate(
   p_member_id uuid,
   p_decision text,
@@ -109,22 +109,24 @@ begin
     raise exception '관리자만 수료증을 승인할 수 있습니다.';
   end if;
 
-  if p_decision not in ('approved', 'rejected') then
-    raise exception '승인 또는 반려 상태가 올바르지 않습니다.';
+  if p_decision not in ('approved', 'rejected', 'pending') then
+    raise exception '승인, 반려 또는 승인 취소 상태가 올바르지 않습니다.';
   end if;
 
   update public.reservation_members
   set
     certificate_review_status = p_decision,
     certificate_verified = (p_decision = 'approved'),
-    certificate_review_note = nullif(trim(coalesce(p_note, '')), ''),
+    certificate_review_note = case
+      when p_decision = 'pending' then null
+      else nullif(trim(coalesce(p_note, '')), '')
+    end,
     certificate_reviewed_at = now(),
     certificate_reviewed_by = auth.uid()
-  where id = p_member_id
-    and safety_certificate_path is not null;
+  where id = p_member_id;
 
   if not found then
-    raise exception '제출된 수료증을 찾을 수 없습니다.';
+    raise exception '처리할 참여자 정보를 찾을 수 없습니다.';
   end if;
 end;
 $$;
@@ -133,6 +135,55 @@ revoke all on function public.admin_review_certificate(uuid, text, text)
 from public;
 
 grant execute on function public.admin_review_certificate(uuid, text, text)
+to authenticated;
+
+-- 한 예약의 참여자 수료증을 한 번에 전체 승인하거나 전체 승인 취소합니다.
+create or replace function public.admin_review_all_certificates(
+  p_reservation_id uuid,
+  p_decision text,
+  p_note text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1
+    from public.user_roles as user_role
+    where user_role.user_id = auth.uid()
+      and user_role.role::text = 'admin'
+  ) then
+    raise exception '관리자만 수료증을 승인할 수 있습니다.';
+  end if;
+
+  if p_decision not in ('approved', 'pending') then
+    raise exception '전체 승인 또는 전체 승인 취소 상태가 올바르지 않습니다.';
+  end if;
+
+  update public.reservation_members
+  set
+    certificate_review_status = p_decision,
+    certificate_verified = (p_decision = 'approved'),
+    certificate_review_note = case
+      when p_decision = 'pending' then null
+      else nullif(trim(coalesce(p_note, '')), '')
+    end,
+    certificate_reviewed_at = now(),
+    certificate_reviewed_by = auth.uid()
+  where reservation_id = p_reservation_id;
+
+  if not found then
+    raise exception '처리할 참여자 정보가 없습니다.';
+  end if;
+end;
+$$;
+
+revoke all on function public.admin_review_all_certificates(uuid, text, text)
+from public;
+
+grant execute on function public.admin_review_all_certificates(uuid, text, text)
 to authenticated;
 
 commit;
