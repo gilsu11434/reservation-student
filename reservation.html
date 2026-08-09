@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260809-detail-validation">
+  <link rel="stylesheet" href="./styles/style.css?v=20260809-detail-error-order">
 </head>
 <body>
   <header class="app-header">
@@ -135,12 +135,12 @@
 
             <label class="field">
               사용할 장비
-              <input id="equipment" placeholder="인두기, 컴퓨터, 없음 등" required>
+              <input id="equipment" placeholder="인두기, 컴퓨터, 없음 등" aria-required="true">
             </label>
 
             <label class="field field-full">
               사용 목적
-              <textarea id="purpose" placeholder="프로젝트와 사용 목적을 작성해 주세요." required></textarea>
+              <textarea id="purpose" placeholder="프로젝트와 사용 목적을 작성해 주세요." aria-required="true"></textarea>
             </label>
 
             <div class="field reservation-calendar-field">
@@ -290,6 +290,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260809-detail-validation"></script>
+  <script type="module" src="./scripts/reservation.js?v=20260809-detail-error-order"></script>
 </body>
 </html>

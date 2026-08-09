@@ -48,6 +48,7 @@ let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
 let professorNameComposing = false;
+let activeReservationErrorInput = null;
 
 document
   .getElementById("logout-button")
@@ -98,32 +99,15 @@ graduationProfessorInput.addEventListener("blur", () => {
   );
 });
 
-[
-  {
-    input: equipmentInput,
-    emptyMessage:
-      "사용할 장비를 입력해 주세요. 사용 장비가 없다면 ‘없음’이라고 입력해 주세요."
-  },
-  {
-    input: purposeInput,
-    emptyMessage: "사용 목적을 입력해 주세요."
-  }
-].forEach(({ input, emptyMessage }) => {
+[equipmentInput, purposeInput].forEach((input) => {
   input.addEventListener("input", () => {
-    input.setCustomValidity("");
     input.removeAttribute("aria-invalid");
-  });
 
-  input.addEventListener("invalid", () => {
-    if (input.value.trim()) {
-      return;
+    if (activeReservationErrorInput === input) {
+      activeReservationErrorInput = null;
+      reservationMessage.textContent = "";
+      reservationMessage.classList.remove("error");
     }
-
-    input.setCustomValidity(emptyMessage);
-    input.setAttribute("aria-invalid", "true");
-    reservationMessage.textContent = emptyMessage;
-    reservationMessage.classList.remove("success");
-    reservationMessage.classList.add("error");
   });
 });
 
@@ -155,6 +139,14 @@ function isValidDescriptiveText(value) {
 }
 
 function showReservationFieldError(input, text) {
+  if (
+    activeReservationErrorInput &&
+    activeReservationErrorInput !== input
+  ) {
+    activeReservationErrorInput.removeAttribute("aria-invalid");
+  }
+
+  activeReservationErrorInput = input;
   reservationMessage.textContent = text;
   reservationMessage.classList.remove("success");
   reservationMessage.classList.add("error");
@@ -1081,6 +1073,11 @@ document
     const message =
       document.getElementById("reservation-message");
 
+    if (activeReservationErrorInput) {
+      activeReservationErrorInput.removeAttribute("aria-invalid");
+      activeReservationErrorInput = null;
+    }
+
     if (!currentTeamId) {
       message.textContent =
         "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
@@ -1112,7 +1109,7 @@ document
     if (!isValidDescriptiveText(equipment)) {
       showReservationFieldError(
         equipmentInput,
-        "사용할 장비에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 컴퓨터, 3D 프린터, 없음)"
+        "사용할 장비에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 컴퓨터, 인두기)"
       );
       return;
     }
