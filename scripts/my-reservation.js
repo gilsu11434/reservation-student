@@ -81,6 +81,15 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function formatProfessorName(value) {
+  const name = String(value ?? "")
+    .trim()
+    .replace(/\s*교수님\s*$/, "")
+    .trim();
+
+  return name ? `${name} 교수님` : "-";
+}
+
 function getStatusLabel(status) {
   const labels = {
     documents_pending: "수료증 확인 대기",
@@ -114,13 +123,11 @@ function getApprovalStatusInfo(status) {
 function getReportStatusInfo(status, hasFile = true) {
   const statuses = {
     pending: {
-      label: hasFile ? "제출 완료" : "미제출",
+      label: "승인 대기",
       description: hasFile
         ? "관리자 확인 대기 중입니다."
-        : "이용확인서가 아직 제출되지 않았습니다.",
-      className: hasFile
-        ? "status-documents_pending"
-        : "status-cancelled"
+        : "파일은 미제출 상태이며 관리자 승인도 대기 중입니다.",
+      className: "status-documents_pending"
     },
     approved: {
       label: "승인 완료",
@@ -327,8 +334,8 @@ function renderReservations() {
               <strong>${reservation.headcount}명 · ${submittedCertificateCount}/${reservation.headcount}건</strong>
             </div>
             <div class="meta-item">
-              <span>졸업작품 담당 교수님</span>
-              <strong>${escapeHtml(reservation.graduation_professor ?? "-")}</strong>
+              <span>담당 교수님</span>
+              <strong>${escapeHtml(formatProfessorName(reservation.graduation_professor))}</strong>
             </div>
           </div>
 
@@ -419,6 +426,20 @@ function renderReservations() {
             <section class="workflow-panel">
               <h3>이용확인서</h3>
               <p>이용을 마친 후 확인서를 제출하세요.</p>
+              <div class="document-status-pair">
+                <div class="document-status-item">
+                  <span>파일 업로드</span>
+                  <strong>${latestReport ? "제출 완료" : "미제출"}</strong>
+                </div>
+                <div class="document-status-item">
+                  <span>관리자 승인</span>
+                  <strong>
+                    <span class="status-badge ${reportStatus.className}">
+                      ${escapeHtml(reportStatus.label)}
+                    </span>
+                  </strong>
+                </div>
+              </div>
               ${
                 latestReport
                   ? `

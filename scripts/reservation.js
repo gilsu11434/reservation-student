@@ -30,6 +30,9 @@ const selectedTimeSummary = document.getElementById(
   "selected-time-summary"
 );
 const timeSlotMessage = document.getElementById("time-slot-message");
+const graduationProfessorInput = document.getElementById(
+  "graduation-professor"
+);
 
 let bookedSlots = [];
 let bookedSlotsLoaded = false;
@@ -39,6 +42,7 @@ let selectedEndHour = null;
 let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
+let professorNameComposing = false;
 
 document
   .getElementById("logout-button")
@@ -63,6 +67,53 @@ document
 document
   .getElementById("requester-email")
   .addEventListener("input", updatePrimaryParticipant);
+
+graduationProfessorInput.addEventListener("compositionstart", () => {
+  professorNameComposing = true;
+});
+
+graduationProfessorInput.addEventListener("compositionend", () => {
+  professorNameComposing = false;
+  graduationProfessorInput.value = sanitizeProfessorName(
+    graduationProfessorInput.value
+  );
+});
+
+graduationProfessorInput.addEventListener("input", () => {
+  if (!professorNameComposing) {
+    graduationProfessorInput.value = sanitizeProfessorName(
+      graduationProfessorInput.value
+    );
+  }
+});
+
+graduationProfessorInput.addEventListener("blur", () => {
+  graduationProfessorInput.value = normalizeProfessorName(
+    graduationProfessorInput.value
+  );
+});
+
+function sanitizeProfessorName(value) {
+  return String(value ?? "")
+    .replace(/교수님?/g, "")
+    .replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z·ㆍ\s]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .slice(0, 30);
+}
+
+function normalizeProfessorName(value) {
+  return sanitizeProfessorName(value).trim();
+}
+
+function isValidProfessorName(value) {
+  const characters = Array.from(value.replace(/\s/g, ""));
+
+  return (
+    characters.length >= 2 &&
+    characters.length <= 30 &&
+    /^[가-힣a-zA-Z·ㆍ ]+$/.test(value)
+  );
+}
 
 calendarToggle.addEventListener("click", () => {
   const opening = calendarPopover.hidden;
@@ -1009,15 +1060,26 @@ document
     const endTime =
       document.getElementById("end-time").value;
 
-    const graduationProfessor =
-      document.getElementById("graduation-professor")
-        .value.trim();
+    const graduationProfessor = normalizeProfessorName(
+      graduationProfessorInput.value
+    );
+
+    graduationProfessorInput.value = graduationProfessor;
 
     if (!date || !startTime || !endTime || !graduationProfessor) {
       message.textContent =
-        "예약 날짜, 이용 시간, 졸업작품 담당 교수님을 모두 입력해 주세요.";
+        "예약 날짜, 이용 시간, 담당 교수님 이름을 모두 입력해 주세요.";
       message.classList.remove("success");
       message.classList.add("error");
+      return;
+    }
+
+    if (!isValidProfessorName(graduationProfessor)) {
+      message.textContent =
+        "담당 교수님은 ‘교수님’을 제외한 이름만 입력해 주세요.";
+      message.classList.remove("success");
+      message.classList.add("error");
+      graduationProfessorInput.focus();
       return;
     }
 

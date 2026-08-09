@@ -36,6 +36,19 @@ add column if not exists report_required boolean not null default false;
 alter table public.reservations
 alter column report_required set default true;
 
+-- 이용확인서 파일이 없어도 예약 단위로 승인 상태를 저장합니다.
+alter table public.reservations
+add column if not exists usage_report_review_status text not null default 'pending';
+
+alter table public.reservations
+add column if not exists usage_report_review_note text;
+
+alter table public.reservations
+add column if not exists usage_report_reviewed_at timestamptz;
+
+alter table public.reservations
+add column if not exists usage_report_reviewed_by uuid references auth.users(id);
+
 do $$
 begin
   if not exists (
@@ -51,6 +64,21 @@ begin
 end;
 $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'reservations_usage_report_review_status_check'
+      and conrelid = 'public.reservations'::regclass
+  ) then
+    alter table public.reservations
+    add constraint reservations_usage_report_review_status_check
+    check (usage_report_review_status in ('pending', 'approved', 'rejected'));
+  end if;
+end;
+$$;
+
 alter table public.usage_reports
 add column if not exists review_status text not null default 'pending';
 
@@ -62,6 +90,11 @@ add column if not exists reviewed_by uuid references auth.users(id);
 
 alter table public.usage_reports
 add column if not exists review_note text;
+
+-- 기존 프로젝트의 usage_reports 테이블에는 created_at이 없을 수 있습니다.
+-- 관리자 화면과 최근 이용확인서 조회에서 사용할 제출 일시를 보완합니다.
+alter table public.usage_reports
+add column if not exists created_at timestamptz not null default now();
 
 do $$
 begin
@@ -84,7 +117,30 @@ on public.reservations (approval_status);
 create index if not exists usage_reports_reservation_review_idx
 on public.usage_reports (reservation_id, review_status);
 
--- 예약 화면에서 입력한 졸업작품 담당 교수명을 본인 예약에만 저장합니다.
+create index if not exists reservations_usage_report_review_idx
+on public.reservations (usage_report_review_status);
+
+-- 기존 이용확인서의 최근 승인 상태를 예약 단위 상태로 한 번 동기화합니다.
+update public.reservations as reservation
+set
+  usage_report_review_status = latest_report.review_status,
+  usage_report_review_note = latest_report.review_note,
+  usage_report_reviewed_at = latest_report.reviewed_at,
+  usage_report_reviewed_by = latest_report.reviewed_by
+from (
+  select distinct on (report.reservation_id)
+    report.reservation_id,
+    report.review_status,
+    report.review_note,
+    report.reviewed_at,
+    report.reviewed_by
+  from public.usage_reports as report
+  order by report.reservation_id, report.created_at desc
+) as latest_report
+where reservation.id = latest_report.reservation_id
+  and reservation.usage_report_reviewed_at is null;
+
+-- 예약 화면에서 입력한 담당 교수 이름만 본인 예약에 저장합니다.
 create or replace function public.set_my_reservation_professor(
   p_reservation_id uuid,
   p_graduation_professor text
@@ -94,13 +150,25 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_professor_name text;
 begin
-  if nullif(trim(coalesce(p_graduation_professor, '')), '') is null then
-    raise exception '졸업작품 담당 교수님을 입력해 주세요.';
+  v_professor_name := regexp_replace(
+    trim(coalesce(p_graduation_professor, '')),
+    '[[:space:]]*교수님[[:space:]]*$',
+    ''
+  );
+
+  if nullif(v_professor_name, '') is null then
+    raise exception '담당 교수님 이름을 입력해 주세요.';
+  end if;
+
+  if v_professor_name !~ '^[가-힣A-Za-z·ㆍ ]{2,30}$' then
+    raise exception '담당 교수님은 이름만 입력해 주세요.';
   end if;
 
   update public.reservations as reservation
-  set graduation_professor = trim(p_graduation_professor)
+  set graduation_professor = v_professor_name
   where reservation.id = p_reservation_id
     and exists (
       select 1
@@ -197,14 +265,9 @@ begin
     where previous_team.leader_id = v_leader_id
       and previous_reservation.status::text <> 'cancelled'
       and previous_reservation.report_required = true
-      and not exists (
-        select 1
-        from public.usage_reports as report
-        where report.reservation_id = previous_reservation.id
-          and report.review_status = 'approved'
-      )
+      and previous_reservation.usage_report_review_status <> 'approved'
   ) then
-    raise exception '이전 예약의 이용확인서를 제출하고 관리자 승인을 받은 후 다음 예약을 신청할 수 있습니다.'
+    raise exception '이전 예약의 이용확인서에 대한 관리자 승인을 받은 후 다음 예약을 신청할 수 있습니다.'
       using errcode = '23514';
   end if;
 
@@ -278,6 +341,19 @@ begin
   new.reviewed_at := null;
   new.reviewed_by := null;
 
+  update public.reservations
+  set
+    usage_report_review_status = 'pending',
+    usage_report_review_note = null,
+    usage_report_reviewed_at = null,
+    usage_report_reviewed_by = null
+  where id = new.reservation_id;
+
+  update public.reservations
+  set status = 'ready'
+  where id = new.reservation_id
+    and status::text = 'completed';
+
   return new;
 end;
 $$;
@@ -347,7 +423,93 @@ from public;
 grant execute on function public.admin_review_reservation(uuid, text, text)
 to authenticated;
 
--- 관리자만 이용확인서를 승인하거나 반려할 수 있습니다.
+-- 관리자는 파일 제출 여부와 관계없이 예약 단위로 이용확인서를 승인·반려·승인 취소할 수 있습니다.
+create or replace function public.admin_review_reservation_report(
+  p_reservation_id uuid,
+  p_decision text,
+  p_note text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_reservation_exists boolean;
+begin
+  if not exists (
+    select 1
+    from public.user_roles as user_role
+    where user_role.user_id = auth.uid()
+      and user_role.role::text = 'admin'
+  ) then
+    raise exception '관리자만 이용확인서를 승인할 수 있습니다.';
+  end if;
+
+  if p_decision not in ('approved', 'rejected', 'pending') then
+    raise exception '승인, 반려 또는 승인 취소 상태가 올바르지 않습니다.';
+  end if;
+
+  select exists (
+    select 1
+    from public.reservations
+    where id = p_reservation_id
+  ) into v_reservation_exists;
+
+  if not v_reservation_exists then
+    raise exception '처리할 예약을 찾을 수 없습니다.';
+  end if;
+
+  -- 파일이 있으면 가장 최근 제출 기록도 같은 상태로 맞춥니다.
+  update public.usage_reports
+  set
+    review_status = p_decision,
+    review_note = case
+      when p_decision = 'pending' then null
+      else nullif(trim(coalesce(p_note, '')), '')
+    end,
+    reviewed_at = now(),
+    reviewed_by = auth.uid()
+  where id = (
+    select report.id
+    from public.usage_reports as report
+    where report.reservation_id = p_reservation_id
+    order by report.created_at desc
+    limit 1
+  );
+
+  update public.reservations
+  set
+    usage_report_review_status = p_decision,
+    usage_report_review_note = case
+      when p_decision = 'pending' then null
+      else nullif(trim(coalesce(p_note, '')), '')
+    end,
+    usage_report_reviewed_at = now(),
+    usage_report_reviewed_by = auth.uid()
+  where id = p_reservation_id;
+
+  if p_decision = 'approved' then
+    update public.reservations
+    set status = 'completed'
+    where id = p_reservation_id
+      and status::text <> 'cancelled';
+  else
+    update public.reservations
+    set status = 'ready'
+    where id = p_reservation_id
+      and status::text = 'completed';
+  end if;
+end;
+$$;
+
+revoke all on function public.admin_review_reservation_report(uuid, text, text)
+from public;
+
+grant execute on function public.admin_review_reservation_report(uuid, text, text)
+to authenticated;
+
+-- 이전 관리자 화면과의 호환성을 위해 파일 ID 기반 함수도 유지합니다.
 create or replace function public.admin_review_usage_report(
   p_report_id uuid,
   p_decision text,
@@ -361,38 +523,20 @@ as $$
 declare
   v_reservation_id uuid;
 begin
-  if not exists (
-    select 1
-    from public.user_roles as user_role
-    where user_role.user_id = auth.uid()
-      and user_role.role::text = 'admin'
-  ) then
-    raise exception '관리자만 이용확인서를 승인할 수 있습니다.';
-  end if;
-
-  if p_decision not in ('approved', 'rejected') then
-    raise exception '승인 또는 반려 상태가 올바르지 않습니다.';
-  end if;
-
-  update public.usage_reports
-  set
-    review_status = p_decision,
-    review_note = nullif(trim(coalesce(p_note, '')), ''),
-    reviewed_at = now(),
-    reviewed_by = auth.uid()
-  where id = p_report_id
-  returning reservation_id into v_reservation_id;
+  select report.reservation_id
+  into v_reservation_id
+  from public.usage_reports as report
+  where report.id = p_report_id;
 
   if v_reservation_id is null then
     raise exception '처리할 이용확인서를 찾을 수 없습니다.';
   end if;
 
-  if p_decision = 'approved' then
-    update public.reservations
-    set status = 'completed'
-    where id = v_reservation_id
-      and status::text <> 'cancelled';
-  end if;
+  perform public.admin_review_reservation_report(
+    v_reservation_id,
+    p_decision,
+    p_note
+  );
 end;
 $$;
 
@@ -416,6 +560,11 @@ where table_schema = 'public'
     'graduation_professor',
     'approval_status',
     'report_required',
-    'review_status'
+    'review_status',
+    'created_at',
+    'usage_report_review_status',
+    'usage_report_review_note',
+    'usage_report_reviewed_at',
+    'usage_report_reviewed_by'
   )
 order by table_name, column_name;

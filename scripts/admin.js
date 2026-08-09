@@ -199,6 +199,15 @@ function showMessage(message, isError = false) {
   adminMessage.hidden = !message;
 }
 
+function formatProfessorName(value) {
+  const name = String(value ?? "")
+    .trim()
+    .replace(/\s*교수님\s*$/, "")
+    .trim();
+
+  return name ? `${name} 교수님` : "-";
+}
+
 function getDateParts(value = new Date()) {
   const parts = seoulDateFormatter.formatToParts(
     new Date(value)
@@ -299,7 +308,7 @@ function getApprovalStatusInfo(status) {
 function getReportStatusInfo(status) {
   const statuses = {
     pending: {
-      label: "확인 대기",
+      label: "승인 대기",
       className: "status-documents_pending"
     },
     approved: {
@@ -1007,8 +1016,8 @@ function openReservationDetails(reservationId) {
         ${renderDetailItem("학과", reservation.department)}
         ${renderDetailItem("학번", reservation.student_id)}
         ${renderDetailItem(
-          "졸업작품 담당 교수님",
-          reservation.graduation_professor
+          "담당 교수님",
+          formatProfessorName(reservation.graduation_professor)
         )}
         ${renderDetailItem(
           "사용 인원",
@@ -1054,6 +1063,20 @@ function openReservationDetails(reservationId) {
         <span class="status-badge ${reportStatus.className}">
           ${escapeHtml(reportStatus.label)}
         </span>
+      </div>
+      <div class="document-status-pair admin-report-status-pair">
+        <div class="document-status-item">
+          <span>파일 업로드</span>
+          <strong>${latestReport ? "제출 완료" : "미제출"}</strong>
+        </div>
+        <div class="document-status-item">
+          <span>관리자 승인</span>
+          <strong>
+            <span class="status-badge ${reportStatus.className}">
+              ${escapeHtml(reportStatus.label)}
+            </span>
+          </strong>
+        </div>
       </div>
       ${
         latestReport
