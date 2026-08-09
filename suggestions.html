@@ -8,7 +8,7 @@
     content="창의융합프로젝트실 이용 건의사항 게시판"
   >
   <title>건의사항 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260809-suggestion-owner-actions">
+  <link rel="stylesheet" href="./styles/style.css?v=20260809-suggestion-images">
 </head>
 <body>
   <header class="app-header">
@@ -37,7 +37,7 @@
         <p>
           창의융합프로젝트실 이용 중 불편했던 점이나 개선 아이디어를
           자유롭게 남겨주세요. 제목과 가려진 작성자 이름은 공개되며,
-            본문은 관리자와 작성자 본인만 열람할 수 있습니다.
+          본문과 첨부 사진은 관리자와 작성자 본인만 열람할 수 있습니다.
         </p>
       </div>
       <a class="button" href="#suggestion-form-card">건의 작성</a>
@@ -50,7 +50,7 @@
         <div class="card-header">
           <div>
             <p class="eyebrow">New suggestion</p>
-            <h2 id="suggestion-form-title">새 건의 작성</h2>
+            <h2>새 건의 작성</h2>
           </div>
           <span class="icon-box" aria-hidden="true">＋</span>
         </div>
@@ -85,15 +85,25 @@
             <span class="field-help">최대 2,000자 · 본문은 관리자와 작성자만 확인하며 이름은 가운데가 *로 표시됩니다.</span>
           </label>
 
-          <div class="form-actions">
-            <button
-              id="suggestion-edit-cancel-button"
-              class="button-secondary"
-              type="button"
-              hidden
+          <label class="field">
+            사진 첨부 <span class="optional">(선택)</span>
+            <input
+              id="suggestion-images"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
             >
-              수정 취소
-            </button>
+            <span class="field-help">JPG, PNG, WEBP · 최대 3장 · 장당 5MB 이하 · 관리자와 작성자만 확인 가능</span>
+          </label>
+
+          <div
+            id="suggestion-image-preview"
+            class="suggestion-image-preview"
+            aria-label="첨부 사진 미리보기"
+            hidden
+          ></div>
+
+          <div class="form-actions">
             <button id="suggestion-submit-button" type="submit">
               건의 접수
             </button>
@@ -130,6 +140,6 @@
     창의융합프로젝트실 · 207관 605-1호
   </footer>
 
-  <script type="module" src="./scripts/suggestions.js?v=20260809-suggestion-owner-actions"></script>
+  <script type="module" src="./scripts/suggestions.js?v=20260809-suggestion-images"></script>
 </body>
 </html>

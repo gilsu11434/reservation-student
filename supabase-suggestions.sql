@@ -1,6 +1,8 @@
 -- 건의사항 게시판에 필요한 테이블과 접근 권한을 생성합니다.
 -- Supabase Dashboard > SQL Editor에서 전체 내용을 한 번 실행하세요.
 
+begin;
+
 create table if not exists public.suggestions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -13,6 +15,25 @@ create table if not exists public.suggestions (
   constraint suggestions_content_length
     check (char_length(trim(content)) between 1 and 2000)
 );
+
+alter table public.suggestions
+add column if not exists image_paths text[] not null
+default array[]::text[];
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'suggestions_image_count'
+      and conrelid = 'public.suggestions'::regclass
+  ) then
+    alter table public.suggestions
+    add constraint suggestions_image_count
+    check (cardinality(image_paths) <= 3);
+  end if;
+end;
+$$;
 
 create index if not exists suggestions_created_at_idx
 on public.suggestions (created_at desc);
@@ -109,39 +130,14 @@ for insert
 to authenticated
 with check (user_id = auth.uid());
 
--- 수정할 때 작성자 정보는 바꾸지 못하도록 원래 값으로 고정합니다.
-create or replace function public.prepare_suggestion_update()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  new.user_id := old.user_id;
-  new.author_name := old.author_name;
-  new.title := trim(new.title);
-  new.content := trim(new.content);
-  return new;
-end;
-$$;
-
+-- 이전 버전의 수정 기능과 권한을 제거합니다.
 drop trigger if exists trigger_prepare_suggestion_update
 on public.suggestions;
-
-create trigger trigger_prepare_suggestion_update
-before update on public.suggestions
-for each row
-execute function public.prepare_suggestion_update();
 
 drop policy if exists "suggestions_update_owner"
 on public.suggestions;
 
-create policy "suggestions_update_owner"
-on public.suggestions
-for update
-to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+drop function if exists public.prepare_suggestion_update();
 
 drop policy if exists "suggestions_delete_owner_or_admin"
 on public.suggestions;
@@ -164,10 +160,86 @@ using (
 );
 
 revoke all on table public.suggestions from anon, authenticated;
-grant select, insert, update, delete on table public.suggestions to authenticated;
+grant select, insert, delete on table public.suggestions to authenticated;
 
 revoke all on table public.suggestion_public_list
 from public, anon, authenticated;
 
 grant select on table public.suggestion_public_list
 to anon, authenticated;
+
+-- 건의사항 사진은 비공개 Bucket에 저장합니다.
+insert into storage.buckets (
+  id,
+  name,
+  public,
+  file_size_limit,
+  allowed_mime_types
+)
+values (
+  'suggestion-images',
+  'suggestion-images',
+  false,
+  5242880,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  name = excluded.name,
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "suggestion_images_insert_own"
+on storage.objects;
+
+create policy "suggestion_images_insert_own"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'suggestion-images'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
+
+drop policy if exists "suggestion_images_select_own_or_admin"
+on storage.objects;
+
+create policy "suggestion_images_select_own_or_admin"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'suggestion-images'
+  and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (
+      select 1
+      from public.user_roles as user_role
+      where user_role.user_id = auth.uid()
+        and user_role.role::text = 'admin'
+    )
+  )
+);
+
+drop policy if exists "suggestion_images_delete_own_or_admin"
+on storage.objects;
+
+create policy "suggestion_images_delete_own_or_admin"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'suggestion-images'
+  and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (
+      select 1
+      from public.user_roles as user_role
+      where user_role.user_id = auth.uid()
+        and user_role.role::text = 'admin'
+    )
+  )
+);
+
+commit;

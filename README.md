@@ -9,7 +9,7 @@
 - `reservation.html`: 예약 신청과 예약 시간 확인
 - `my-reservation.html`: 내 예약, 수료증, 연장 신청, 이용확인서
 - `admin.html`: 사용자와 전체 예약 관리
-- `suggestions.html`: 제목·가린 작성자 공개, 작성자 수정·삭제 및 관리자 열람
+- `suggestions.html`: 제목·가린 작성자 공개, 작성자 삭제 및 비공개 사진 첨부
 - `styles/style.css`: 전체 공통 디자인
 - `scripts`: Supabase 연결과 페이지 기능
 - `supabase-reservation-approval-workflow.sql`: 예약·이용확인서 관리자 승인 흐름
@@ -27,7 +27,7 @@
 8. 예약 가능 범위를 14일로 적용하려면 `supabase-reservation-window-14-days.sql` 전체를 한 번 실행합니다.
 9. 관리자 예약 상세화면에서 참여자 정보를 확인하려면 `supabase-admin-reservation-details.sql` 전체를 한 번 실행합니다.
 10. 건의사항 게시판을 사용하려면 `supabase-suggestions.sql` 전체를 한 번 실행합니다.
-    제목과 가운데가 `*`로 가려진 작성자는 공개됩니다. 본문은 관리자와 작성자 본인만 조회할 수 있고, 작성자는 자신의 게시글을 수정·삭제할 수 있습니다.
+    제목과 가운데가 `*`로 가려진 작성자는 공개됩니다. 본문과 첨부 사진은 관리자와 작성자 본인만 조회할 수 있고, 작성자는 자신의 게시글을 삭제할 수 있습니다.
 11. 수료증과 이용확인서 업로드를 위해 `supabase-storage-buckets.sql` 전체를 한 번 실행합니다.
     실행 후 Storage에 `safety-certificates`, `usage-reports` Bucket이 생성되었는지 확인합니다.
 12. 이용확인서 제출 기록을 저장할 수 있도록 `supabase-usage-reports-policy.sql` 전체를 한 번 실행합니다.

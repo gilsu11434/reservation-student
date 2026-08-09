@@ -1558,6 +1558,12 @@ input[type="file"]::file-selector-button {
   min-height: 210px;
 }
 
+.suggestion-form-card .optional {
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .suggestion-login-prompt {
   display: grid;
   justify-items: start;
@@ -1657,26 +1663,67 @@ input[type="file"]::file-selector-button {
   font-weight: 800;
 }
 
-.suggestion-post-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 7px;
+.suggestion-image-preview,
+.suggestion-post-images {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
 }
 
-.suggestion-edit-button {
-  min-height: 34px;
-  padding: 6px 10px;
-  border-color: var(--border-strong);
-  color: var(--text-soft);
-  background: var(--surface);
-  font-size: 12px;
+.suggestion-image-preview[hidden] {
+  display: none;
 }
 
-.suggestion-edit-button:hover {
+.suggestion-image-preview {
+  margin-bottom: 18px;
+}
+
+.suggestion-image-preview-item {
+  min-width: 0;
+  margin: 0;
+}
+
+.suggestion-image-preview-item img,
+.suggestion-post-images img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  object-fit: cover;
+}
+
+.suggestion-image-preview-item figcaption {
+  overflow: hidden;
+  margin-top: 5px;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-post-images {
+  margin-top: 12px;
+}
+
+.suggestion-post-images a {
+  overflow: hidden;
+  border-radius: 9px;
+}
+
+.suggestion-post-images a:hover img {
   border-color: var(--brand);
-  color: var(--brand-dark);
-  background: var(--surface-accent);
+  filter: brightness(0.96);
+}
+
+.suggestion-image-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: var(--danger-dark);
+  background: #fff4f3;
+  font-size: 12px;
 }
 
 .suggestion-post-content {
@@ -2584,11 +2631,6 @@ input[type="file"]::file-selector-button {
   }
 
   .suggestion-list-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
-  .suggestion-post-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
   }

@@ -1,12 +1,19 @@
 import { supabase } from "./config.js";
 
+const SUGGESTION_IMAGE_BUCKET = "suggestion-images";
+const MAX_IMAGE_COUNT = 3;
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const IMAGE_EXTENSIONS = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp"
+};
+
 const suggestionForm = document.getElementById("suggestion-form");
 const suggestionLoginPrompt = document.getElementById(
   "suggestion-login-prompt"
 );
-const suggestionMessage = document.getElementById(
-  "suggestion-message"
-);
+const suggestionMessage = document.getElementById("suggestion-message");
 const suggestionList = document.getElementById("suggestion-list");
 const suggestionCount = document.getElementById("suggestion-count");
 const suggestionListTitle = document.getElementById(
@@ -19,44 +26,31 @@ const authLink = document.getElementById("suggestion-auth-link");
 const submitButton = document.getElementById(
   "suggestion-submit-button"
 );
-const formTitle = document.getElementById("suggestion-form-title");
-const editCancelButton = document.getElementById(
-  "suggestion-edit-cancel-button"
+const imageInput = document.getElementById("suggestion-images");
+const imagePreview = document.getElementById(
+  "suggestion-image-preview"
 );
 
-const seoulDateTimeFormatter = new Intl.DateTimeFormat(
-  "ko-KR",
-  {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23"
-  }
-);
+const seoulDateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23"
+});
 
 let currentUser = null;
 let currentRole = null;
 let suggestions = [];
-let editingSuggestionId = null;
+let previewUrls = [];
 
 refreshButton.addEventListener("click", loadSuggestions);
-
 suggestionForm.addEventListener("submit", submitSuggestion);
-editCancelButton.addEventListener("click", resetSuggestionEditor);
+imageInput.addEventListener("change", renderSelectedImagePreview);
 
 suggestionList.addEventListener("click", (event) => {
-  const editButton = event.target.closest(
-    "[data-edit-suggestion-id]"
-  );
-
-  if (editButton) {
-    startEditingSuggestion(editButton.dataset.editSuggestionId);
-    return;
-  }
-
   const deleteButton = event.target.closest(
     "[data-delete-suggestion-id]"
   );
@@ -111,18 +105,7 @@ function maskName(value) {
   );
 }
 
-function canDeleteSuggestion(suggestion) {
-  return Boolean(
-    currentUser &&
-    suggestion &&
-    (
-      currentRole === "admin" ||
-      String(suggestion.user_id) === String(currentUser.id)
-    )
-  );
-}
-
-function canEditSuggestion(suggestion) {
+function isSuggestionOwner(suggestion) {
   return Boolean(
     currentUser &&
     suggestion &&
@@ -130,42 +113,119 @@ function canEditSuggestion(suggestion) {
   );
 }
 
-function resetSuggestionEditor() {
-  editingSuggestionId = null;
-  suggestionForm.reset();
-  formTitle.textContent = "새 건의 작성";
-  submitButton.textContent = "건의 접수";
-  submitButton.disabled = false;
-  editCancelButton.hidden = true;
+function canDeleteSuggestion(suggestion) {
+  return Boolean(
+    currentUser &&
+    suggestion &&
+    (currentRole === "admin" || isSuggestionOwner(suggestion))
+  );
 }
 
-function startEditingSuggestion(suggestionId) {
-  const suggestion = suggestions.find(
-    (item) => String(item.id) === String(suggestionId)
-  );
+function normalizeImagePaths(value) {
+  return Array.isArray(value)
+    ? value.filter((path) => typeof path === "string" && path)
+    : [];
+}
 
-  if (!suggestion || !canEditSuggestion(suggestion)) {
-    showMessage("본인이 작성한 건의사항만 수정할 수 있습니다.", true);
+function validateImageFiles(files) {
+  if (files.length > MAX_IMAGE_COUNT) {
+    return `사진은 최대 ${MAX_IMAGE_COUNT}장까지 첨부할 수 있습니다.`;
+  }
+
+  for (const file of files) {
+    if (!IMAGE_EXTENSIONS[file.type]) {
+      return "사진은 JPG, PNG, WEBP 형식만 첨부할 수 있습니다.";
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      return `사진 한 장의 크기는 5MB 이하여야 합니다: ${file.name}`;
+    }
+  }
+
+  return "";
+}
+
+function clearImagePreview() {
+  for (const url of previewUrls) {
+    URL.revokeObjectURL(url);
+  }
+
+  previewUrls = [];
+  imagePreview.innerHTML = "";
+  imagePreview.hidden = true;
+}
+
+function renderSelectedImagePreview() {
+  clearImagePreview();
+
+  const files = Array.from(imageInput.files ?? []);
+  const validationMessage = validateImageFiles(files);
+
+  if (validationMessage) {
+    imageInput.value = "";
+    showMessage(validationMessage, true);
     return;
   }
 
-  editingSuggestionId = suggestion.id;
-  document.getElementById("suggestion-title").value =
-    suggestion.title ?? "";
-  document.getElementById("suggestion-content").value =
-    suggestion.content ?? "";
-  formTitle.textContent = "건의사항 수정";
-  submitButton.textContent = "수정 내용 저장";
-  editCancelButton.hidden = false;
-  showMessage("수정할 내용을 확인한 뒤 저장해 주세요.");
+  if (files.length === 0) {
+    return;
+  }
 
-  document.getElementById("suggestion-form-card").scrollIntoView({
-    behavior: "smooth",
-    block: "start"
-  });
-  document.getElementById("suggestion-title").focus({
-    preventScroll: true
-  });
+  imagePreview.hidden = false;
+  imagePreview.innerHTML = files
+    .map((file, index) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewUrls.push(previewUrl);
+
+      return `
+        <figure class="suggestion-image-preview-item">
+          <img
+            src="${escapeHtml(previewUrl)}"
+            alt="첨부할 사진 ${index + 1} 미리보기"
+          >
+          <figcaption>${escapeHtml(file.name)}</figcaption>
+        </figure>
+      `;
+    })
+    .join("");
+}
+
+function renderSuggestionImages(suggestion) {
+  const imagePaths = normalizeImagePaths(suggestion.image_paths);
+  const imageUrls = Array.isArray(suggestion.image_urls)
+    ? suggestion.image_urls
+    : [];
+
+  if (imageUrls.length > 0) {
+    return `
+      <div class="suggestion-post-images">
+        ${imageUrls.map((url, index) => `
+          <a
+            href="${escapeHtml(url)}"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="첨부 사진 ${index + 1} 크게 보기"
+          >
+            <img
+              src="${escapeHtml(url)}"
+              alt="건의사항 첨부 사진 ${index + 1}"
+              loading="lazy"
+            >
+          </a>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  if (imagePaths.length > 0) {
+    return `
+      <p class="suggestion-image-error">
+        첨부 사진을 불러오지 못했습니다. 최신 건의사항 SQL을 확인해 주세요.
+      </p>
+    `;
+  }
+
+  return "";
 }
 
 function renderSuggestions() {
@@ -190,40 +250,28 @@ function renderSuggestions() {
 
   suggestionList.innerHTML = suggestions
     .map((suggestion) => {
-      const isOwner = canEditSuggestion(suggestion);
+      const isOwner = isSuggestionOwner(suggestion);
+      const canReadPrivateContent = isAdmin || isOwner;
 
       return `
-      <article class="suggestion-post">
-        <header class="suggestion-post-header">
-          <div>
-            <h3>${escapeHtml(suggestion.title)}</h3>
-            <p>
-              <span>${escapeHtml(
-                suggestion.masked_author_name ||
-                maskName(suggestion.author_name)
-              )}</span>
-              <span aria-hidden="true">·</span>
-              <time datetime="${escapeHtml(suggestion.created_at)}">
-                ${escapeHtml(formatDateTime(suggestion.created_at))}
-              </time>
-              ${isOwner
-                ? `<span class="suggestion-owner-badge">내가 작성</span>`
-                : ""}
-            </p>
-          </div>
-          <div class="suggestion-post-actions">
-            ${isOwner
-              ? `
-                <button
-                  type="button"
-                  class="suggestion-edit-button"
-                  data-edit-suggestion-id="${escapeHtml(suggestion.id)}"
-                  aria-label="${escapeHtml(suggestion.title)} 게시글 수정"
-                >
-                  수정
-                </button>
-              `
-              : ""}
+        <article class="suggestion-post">
+          <header class="suggestion-post-header">
+            <div>
+              <h3>${escapeHtml(suggestion.title)}</h3>
+              <p>
+                <span>${escapeHtml(
+                  suggestion.masked_author_name ||
+                  maskName(suggestion.author_name)
+                )}</span>
+                <span aria-hidden="true">·</span>
+                <time datetime="${escapeHtml(suggestion.created_at)}">
+                  ${escapeHtml(formatDateTime(suggestion.created_at))}
+                </time>
+                ${isOwner
+                  ? `<span class="suggestion-owner-badge">내가 작성</span>`
+                  : ""}
+              </p>
+            </div>
             ${canDeleteSuggestion(suggestion)
               ? `
                 <button
@@ -231,32 +279,62 @@ function renderSuggestions() {
                   class="suggestion-delete-button"
                   data-delete-suggestion-id="${escapeHtml(suggestion.id)}"
                   aria-label="${escapeHtml(suggestion.title)} 게시글 삭제"
-                >
-                  삭제
-                </button>
+                >삭제</button>
               `
-              : ""
-            }
-          </div>
-        </header>
-        ${
-          isAdmin || isOwner
+              : ""}
+          </header>
+          ${canReadPrivateContent
             ? `
               <p class="suggestion-post-content">
                 ${escapeHtml(suggestion.content)}
               </p>
+              ${renderSuggestionImages(suggestion)}
             `
             : `
               <p class="suggestion-post-private">
                 <span aria-hidden="true">🔒</span>
-                본문은 관리자와 작성자만 확인할 수 있습니다.
+                본문과 사진은 관리자와 작성자만 확인할 수 있습니다.
               </p>
-            `
-          }
-      </article>
-    `;
+            `}
+        </article>
+      `;
     })
     .join("");
+}
+
+async function attachSignedImageUrls(items) {
+  const paths = [...new Set(
+    items.flatMap((suggestion) =>
+      normalizeImagePaths(suggestion.image_paths)
+    )
+  )];
+
+  if (paths.length === 0) {
+    return;
+  }
+
+  const { data, error } = await supabase.storage
+    .from(SUGGESTION_IMAGE_BUCKET)
+    .createSignedUrls(paths, 60 * 60);
+
+  if (error) {
+    console.error("건의사항 사진 URL 생성 오류:", error);
+    return;
+  }
+
+  const signedUrlByPath = new Map(
+    (data ?? [])
+      .filter((item) => item.signedUrl)
+      .map((item) => [item.path, item.signedUrl])
+  );
+
+  for (const suggestion of items) {
+    suggestion.image_urls = normalizeImagePaths(
+      suggestion.image_paths
+    )
+      .map((path) => signedUrlByPath.get(path))
+      .filter(Boolean);
+  }
 }
 
 async function loadSuggestions() {
@@ -274,6 +352,7 @@ async function loadSuggestions() {
         author_name,
         title,
         content,
+        image_paths,
         created_at
       `)
       .order("created_at", { ascending: false })
@@ -301,6 +380,7 @@ async function loadSuggestions() {
           author_name,
           title,
           content,
+          image_paths,
           created_at
         `)
         .eq("user_id", currentUser.id)
@@ -344,23 +424,21 @@ async function loadSuggestions() {
     }
   }
 
-  suggestionList.removeAttribute("aria-busy");
-
   if (error) {
+    suggestionList.removeAttribute("aria-busy");
     suggestionList.innerHTML = `
       <div class="suggestion-empty is-error">
         <strong>건의사항을 불러오지 못했습니다.</strong>
         <p>Supabase에서 최신 건의사항 SQL을 다시 실행했는지 확인해 주세요.</p>
       </div>
     `;
-    showMessage(
-      `건의사항 조회 오류: ${error.message}`,
-      true
-    );
+    showMessage(`건의사항 조회 오류: ${error.message}`, true);
     return;
   }
 
   suggestions = data ?? [];
+  await attachSignedImageUrls(suggestions);
+  suggestionList.removeAttribute("aria-busy");
   renderSuggestions();
 }
 
@@ -378,63 +456,82 @@ async function submitSuggestion(event) {
   const content = document
     .getElementById("suggestion-content")
     .value.trim();
+  const imageFiles = Array.from(imageInput.files ?? []);
+  const validationMessage = validateImageFiles(imageFiles);
 
   if (!title || !content) {
     showMessage("제목과 내용을 모두 입력해 주세요.", true);
     return;
   }
 
-  const isEditing = Boolean(editingSuggestionId);
+  if (validationMessage) {
+    showMessage(validationMessage, true);
+    return;
+  }
 
   submitButton.disabled = true;
-  submitButton.textContent = isEditing ? "수정 중..." : "등록 중...";
+  submitButton.textContent = imageFiles.length > 0
+    ? "사진 업로드 중..."
+    : "등록 중...";
   showMessage("");
 
-  let error = null;
-  let updatedSuggestion = null;
+  const suggestionId = crypto.randomUUID();
+  const uploadedPaths = [];
 
-  if (isEditing) {
-    const response = await supabase
+  try {
+    for (const file of imageFiles) {
+      const extension = IMAGE_EXTENSIONS[file.type];
+      const path =
+        `${currentUser.id}/${suggestionId}/` +
+        `${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from(SUGGESTION_IMAGE_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      uploadedPaths.push(path);
+    }
+
+    submitButton.textContent = "등록 중...";
+
+    const { error: insertError } = await supabase
       .from("suggestions")
-      .update({ title, content })
-      .eq("id", editingSuggestionId)
-      .eq("user_id", currentUser.id)
-      .select("id")
-      .maybeSingle();
+      .insert({
+        id: suggestionId,
+        title,
+        content,
+        image_paths: uploadedPaths
+      });
 
-    error = response.error;
-    updatedSuggestion = response.data;
-  } else {
-    const response = await supabase
-      .from("suggestions")
-      .insert({ title, content });
+    if (insertError) {
+      throw insertError;
+    }
+  } catch (error) {
+    if (uploadedPaths.length > 0) {
+      await supabase.storage
+        .from(SUGGESTION_IMAGE_BUCKET)
+        .remove(uploadedPaths);
+    }
 
-    error = response.error;
-  }
-
-  if (error) {
     submitButton.disabled = false;
-    submitButton.textContent = isEditing
-      ? "수정 내용 저장"
-      : "건의 접수";
-    showMessage(
-      `게시글 ${isEditing ? "수정" : "등록"} 오류: ${error.message}`,
-      true
-    );
+    submitButton.textContent = "건의 접수";
+    showMessage(`게시글 등록 오류: ${error.message}`, true);
     return;
   }
 
-  if (isEditing && !updatedSuggestion) {
-    submitButton.disabled = false;
-    submitButton.textContent = "수정 내용 저장";
-    showMessage("본인이 작성한 건의사항만 수정할 수 있습니다.", true);
-    return;
-  }
-
-  resetSuggestionEditor();
-  showMessage(isEditing
-    ? "건의사항이 수정되었습니다."
-    : "건의사항이 접수되었습니다. 제목과 가린 이름은 표시되며 본문은 관리자와 작성자만 확인할 수 있습니다."
+  suggestionForm.reset();
+  clearImagePreview();
+  submitButton.disabled = false;
+  submitButton.textContent = "건의 접수";
+  showMessage(
+    "건의사항이 접수되었습니다. 본문과 사진은 관리자와 작성자만 확인할 수 있습니다."
   );
 
   await loadSuggestions();
@@ -451,7 +548,7 @@ async function deleteSuggestion(suggestionId) {
   }
 
   const confirmed = window.confirm(
-    `“${suggestion.title}” 게시글을 삭제할까요?`
+    `“${suggestion.title}” 게시글을 삭제할까요? 첨부 사진도 함께 삭제됩니다.`
   );
 
   if (!confirmed) {
@@ -468,10 +565,18 @@ async function deleteSuggestion(suggestionId) {
     return;
   }
 
-  showMessage("게시글이 삭제되었습니다.");
-  if (String(editingSuggestionId) === String(suggestion.id)) {
-    resetSuggestionEditor();
-  }
+  const imagePaths = normalizeImagePaths(suggestion.image_paths);
+  const { error: imageDeleteError } = imagePaths.length > 0
+    ? await supabase.storage
+      .from(SUGGESTION_IMAGE_BUCKET)
+      .remove(imagePaths)
+    : { error: null };
+
+  showMessage(imageDeleteError
+    ? `게시글은 삭제됐지만 사진 정리 중 오류가 발생했습니다: ${imageDeleteError.message}`
+    : "게시글과 첨부 사진이 삭제되었습니다.",
+    Boolean(imageDeleteError)
+  );
   await loadSuggestions();
 }
 
