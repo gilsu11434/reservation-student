@@ -8,6 +8,12 @@ let currentUser = null;
 let currentTeamId = null;
 let currentProfile = null;
 
+const reservationForm = document.getElementById("reservation-form");
+const requesterNameInput = document.getElementById("requester-name");
+const requesterEmailInput = document.getElementById("requester-email");
+const requesterPhoneInput = document.getElementById("requester-phone");
+const departmentInput = document.getElementById("department");
+const studentIdInput = document.getElementById("student-id");
 const headcountInput = document.getElementById("headcount");
 const headcountButtons = document.querySelectorAll("[data-headcount]");
 const participantsSection = document.getElementById("participants-section");
@@ -35,6 +41,7 @@ const graduationProfessorInput = document.getElementById(
 );
 const equipmentInput = document.getElementById("equipment");
 const purposeInput = document.getElementById("purpose");
+const rulesAgreedInput = document.getElementById("rules-agreed");
 const reservationMessage = document.getElementById(
   "reservation-message"
 );
@@ -99,17 +106,20 @@ graduationProfessorInput.addEventListener("blur", () => {
   );
 });
 
-[equipmentInput, purposeInput].forEach((input) => {
-  input.addEventListener("input", () => {
-    input.removeAttribute("aria-invalid");
+function clearEditedFieldError(event) {
+  const input = event.target;
 
-    if (activeReservationErrorInput === input) {
-      activeReservationErrorInput = null;
-      reservationMessage.textContent = "";
-      reservationMessage.classList.remove("error");
-    }
-  });
-});
+  input.removeAttribute?.("aria-invalid");
+
+  if (activeReservationErrorInput === input) {
+    activeReservationErrorInput = null;
+    reservationMessage.textContent = "";
+    reservationMessage.classList.remove("error");
+  }
+}
+
+reservationForm.addEventListener("input", clearEditedFieldError);
+reservationForm.addEventListener("change", clearEditedFieldError);
 
 function sanitizeProfessorName(value) {
   return String(value ?? "")
@@ -152,6 +162,12 @@ function showReservationFieldError(input, text) {
   reservationMessage.classList.add("error");
   input.setAttribute("aria-invalid", "true");
   input.focus();
+}
+
+function createReservationValidationError(text, input) {
+  const error = new Error(text);
+  error.input = input;
+  return error;
 }
 
 calendarToggle.addEventListener("click", () => {
@@ -400,7 +416,10 @@ function collectParticipants() {
   const headcount = Number(headcountInput.value);
 
   if (!headcount) {
-    throw new Error("사용 인원을 선택해 주세요.");
+    throw createReservationValidationError(
+      "사용 인원을 선택해 주세요.",
+      headcountButtons[0]
+    );
   }
 
   const requesterEmail = normalizeEmail(
@@ -408,8 +427,9 @@ function collectParticipants() {
   );
 
   if (!isValidEmail(requesterEmail)) {
-    throw new Error(
-      "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요."
+    throw createReservationValidationError(
+      "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요.",
+      requesterEmailInput
     );
   }
 
@@ -430,22 +450,35 @@ function collectParticipants() {
         return;
       }
 
-      const memberName = card.querySelector(".participant-name").value.trim();
-      const studentId = card
-        .querySelector(".participant-student-id")
-        .value.trim();
+      const memberNameInput = card.querySelector(".participant-name");
+      const participantStudentIdInput = card.querySelector(
+        ".participant-student-id"
+      );
+      const memberEmailInput = card.querySelector(".participant-email");
+      const memberName = memberNameInput.value.trim();
+      const studentId = participantStudentIdInput.value.trim();
       const memberEmail = normalizeEmail(
-        card.querySelector(".participant-email").value
+        memberEmailInput.value
       );
 
       if (!memberName || !studentId || !memberEmail) {
-        throw new Error(
-          `${index + 1}번 참여자의 이름, 학번, 이메일을 입력해 주세요.`
+        const missingInput = !memberName
+          ? memberNameInput
+          : !studentId
+            ? participantStudentIdInput
+            : memberEmailInput;
+
+        throw createReservationValidationError(
+          `${index + 1}번 참여자의 이름, 학번, 이메일을 입력해 주세요.`,
+          missingInput
         );
       }
 
       if (!isValidEmail(memberEmail)) {
-        throw new Error(`${index + 1}번 참여자의 이메일 형식이 올바르지 않습니다.`);
+        throw createReservationValidationError(
+          `${index + 1}번 참여자의 이메일 형식이 올바르지 않습니다.`,
+          memberEmailInput
+        );
       }
 
       participants.push({
@@ -458,7 +491,11 @@ function collectParticipants() {
   const studentIds = participants.map((participant) => participant.student_id);
 
   if (new Set(studentIds).size !== studentIds.length) {
-    throw new Error("같은 학번을 두 번 입력할 수 없습니다.");
+    throw createReservationValidationError(
+      "같은 학번을 두 번 입력할 수 없습니다.",
+      participantFields.querySelector(".participant-student-id") ??
+        studentIdInput
+    );
   }
 
   const memberEmails = participants.map(
@@ -466,7 +503,11 @@ function collectParticipants() {
   );
 
   if (new Set(memberEmails).size !== memberEmails.length) {
-    throw new Error("같은 이메일을 두 번 입력할 수 없습니다.");
+    throw createReservationValidationError(
+      "같은 이메일을 두 번 입력할 수 없습니다.",
+      participantFields.querySelector(".participant-email") ??
+        requesterEmailInput
+    );
   }
 
   return participants;
@@ -1065,23 +1106,87 @@ async function loadBookedSlots() {
     .join("");
 }
 
-document
-  .getElementById("reservation-form")
-  .addEventListener("submit", async (event) => {
+reservationForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const message =
-      document.getElementById("reservation-message");
+    const message = reservationMessage;
 
     if (activeReservationErrorInput) {
       activeReservationErrorInput.removeAttribute("aria-invalid");
       activeReservationErrorInput = null;
     }
 
-    if (!currentTeamId) {
-      message.textContent =
-        "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
-      message.classList.add("error");
+    const requesterName = requesterNameInput.value.trim();
+    const requesterEmail = normalizeEmail(requesterEmailInput.value);
+    const requesterPhone = requesterPhoneInput.value.trim();
+    const department = departmentInput.value.trim();
+    const studentId = studentIdInput.value.trim();
+    const graduationProfessor = normalizeProfessorName(
+      graduationProfessorInput.value
+    );
+
+    const equipment = equipmentInput.value.trim();
+    const purpose = purposeInput.value.trim();
+
+    const date = reservationDateInput.value;
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+
+    graduationProfessorInput.value = graduationProfessor;
+
+    if (!requesterName) {
+      showReservationFieldError(
+        requesterNameInput,
+        "예약자 이름을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidEmail(requesterEmail)) {
+      showReservationFieldError(
+        requesterEmailInput,
+        "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요."
+      );
+      return;
+    }
+
+    if (!requesterPhone) {
+      showReservationFieldError(
+        requesterPhoneInput,
+        "예약자 전화번호를 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!department) {
+      showReservationFieldError(
+        departmentInput,
+        "학과를 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!studentId) {
+      showReservationFieldError(
+        studentIdInput,
+        "학번을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!graduationProfessor) {
+      showReservationFieldError(
+        graduationProfessorInput,
+        "종합설계 지도교수님 이름을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidProfessorName(graduationProfessor)) {
+      showReservationFieldError(
+        graduationProfessorInput,
+        "종합설계 지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)"
+      );
       return;
     }
 
@@ -1090,13 +1195,12 @@ document
     try {
       participants = collectParticipants();
     } catch (error) {
-      message.textContent = error.message;
-      message.classList.add("error");
+      showReservationFieldError(
+        error.input ?? headcountButtons[0],
+        error.message
+      );
       return;
     }
-
-    const equipment = equipmentInput.value.trim();
-    const purpose = purposeInput.value.trim();
 
     if (!equipment) {
       showReservationFieldError(
@@ -1130,35 +1234,53 @@ document
       return;
     }
 
-    const date =
-      document.getElementById("reservation-date").value;
-
-    const startTime =
-      document.getElementById("start-time").value;
-
-    const endTime =
-      document.getElementById("end-time").value;
-
-    const graduationProfessor = normalizeProfessorName(
-      graduationProfessorInput.value
-    );
-
-    graduationProfessorInput.value = graduationProfessor;
-
-    if (!date || !startTime || !endTime || !graduationProfessor) {
-      message.textContent =
-        "예약 날짜, 이용 시간, 종합설계 지도교수님 이름을 모두 입력해 주세요.";
-      message.classList.remove("success");
-      message.classList.add("error");
+    if (!date) {
+      showReservationFieldError(
+        calendarToggle,
+        "예약 날짜를 선택해 주세요."
+      );
       return;
     }
 
-    if (!isValidProfessorName(graduationProfessor)) {
+    if (!startTime) {
+      const firstAvailableStartButton = Array.from(
+        startTimeButtons
+      ).find((button) => !button.disabled);
+
+      showReservationFieldError(
+        firstAvailableStartButton ?? calendarToggle,
+        firstAvailableStartButton
+          ? "시작 시각을 선택해 주세요."
+          : "선택한 날짜에 예약 가능한 시작 시각이 없습니다. 다른 날짜를 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!endTime) {
+      const firstAvailableEndButton = Array.from(
+        endTimeButtons
+      ).find((button) => !button.disabled);
+
+      showReservationFieldError(
+        firstAvailableEndButton ?? calendarToggle,
+        "종료 시각을 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!rulesAgreedInput.checked) {
+      showReservationFieldError(
+        rulesAgreedInput,
+        "이용수칙과 파손·분실 책임 규정을 확인하고 동의해 주세요."
+      );
+      return;
+    }
+
+    if (!currentTeamId) {
       message.textContent =
-        "종합설계 지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)";
+        "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
       message.classList.remove("success");
       message.classList.add("error");
-      graduationProfessorInput.focus();
       return;
     }
 

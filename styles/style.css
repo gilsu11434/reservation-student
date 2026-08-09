@@ -464,6 +464,17 @@ textarea[aria-invalid="true"] {
   user-select: none;
 }
 
+.professor-name-input:has(input[aria-invalid="true"]) {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+button[aria-invalid="true"],
+.checkbox-label input[aria-invalid="true"] {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
+}
+
 textarea {
   min-height: 110px;
   resize: vertical;
