@@ -19,6 +19,10 @@ const authLink = document.getElementById("suggestion-auth-link");
 const submitButton = document.getElementById(
   "suggestion-submit-button"
 );
+const formTitle = document.getElementById("suggestion-form-title");
+const editCancelButton = document.getElementById(
+  "suggestion-edit-cancel-button"
+);
 
 const seoulDateTimeFormatter = new Intl.DateTimeFormat(
   "ko-KR",
@@ -36,12 +40,23 @@ const seoulDateTimeFormatter = new Intl.DateTimeFormat(
 let currentUser = null;
 let currentRole = null;
 let suggestions = [];
+let editingSuggestionId = null;
 
 refreshButton.addEventListener("click", loadSuggestions);
 
 suggestionForm.addEventListener("submit", submitSuggestion);
+editCancelButton.addEventListener("click", resetSuggestionEditor);
 
 suggestionList.addEventListener("click", (event) => {
+  const editButton = event.target.closest(
+    "[data-edit-suggestion-id]"
+  );
+
+  if (editButton) {
+    startEditingSuggestion(editButton.dataset.editSuggestionId);
+    return;
+  }
+
   const deleteButton = event.target.closest(
     "[data-delete-suggestion-id]"
   );
@@ -98,8 +113,59 @@ function maskName(value) {
 
 function canDeleteSuggestion(suggestion) {
   return Boolean(
-    currentUser && suggestion && currentRole === "admin"
+    currentUser &&
+    suggestion &&
+    (
+      currentRole === "admin" ||
+      String(suggestion.user_id) === String(currentUser.id)
+    )
   );
+}
+
+function canEditSuggestion(suggestion) {
+  return Boolean(
+    currentUser &&
+    suggestion &&
+    String(suggestion.user_id) === String(currentUser.id)
+  );
+}
+
+function resetSuggestionEditor() {
+  editingSuggestionId = null;
+  suggestionForm.reset();
+  formTitle.textContent = "새 건의 작성";
+  submitButton.textContent = "건의 접수";
+  submitButton.disabled = false;
+  editCancelButton.hidden = true;
+}
+
+function startEditingSuggestion(suggestionId) {
+  const suggestion = suggestions.find(
+    (item) => String(item.id) === String(suggestionId)
+  );
+
+  if (!suggestion || !canEditSuggestion(suggestion)) {
+    showMessage("본인이 작성한 건의사항만 수정할 수 있습니다.", true);
+    return;
+  }
+
+  editingSuggestionId = suggestion.id;
+  document.getElementById("suggestion-title").value =
+    suggestion.title ?? "";
+  document.getElementById("suggestion-content").value =
+    suggestion.content ?? "";
+  formTitle.textContent = "건의사항 수정";
+  submitButton.textContent = "수정 내용 저장";
+  editCancelButton.hidden = false;
+  showMessage("수정할 내용을 확인한 뒤 저장해 주세요.");
+
+  document.getElementById("suggestion-form-card").scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+  document.getElementById("suggestion-title").focus({
+    preventScroll: true
+  });
 }
 
 function renderSuggestions() {
@@ -123,7 +189,10 @@ function renderSuggestions() {
   }
 
   suggestionList.innerHTML = suggestions
-    .map((suggestion) => `
+    .map((suggestion) => {
+      const isOwner = canEditSuggestion(suggestion);
+
+      return `
       <article class="suggestion-post">
         <header class="suggestion-post-header">
           <div>
@@ -137,10 +206,25 @@ function renderSuggestions() {
               <time datetime="${escapeHtml(suggestion.created_at)}">
                 ${escapeHtml(formatDateTime(suggestion.created_at))}
               </time>
+              ${isOwner
+                ? `<span class="suggestion-owner-badge">내가 작성</span>`
+                : ""}
             </p>
           </div>
-          ${
-            canDeleteSuggestion(suggestion)
+          <div class="suggestion-post-actions">
+            ${isOwner
+              ? `
+                <button
+                  type="button"
+                  class="suggestion-edit-button"
+                  data-edit-suggestion-id="${escapeHtml(suggestion.id)}"
+                  aria-label="${escapeHtml(suggestion.title)} 게시글 수정"
+                >
+                  수정
+                </button>
+              `
+              : ""}
+            ${canDeleteSuggestion(suggestion)
               ? `
                 <button
                   type="button"
@@ -152,10 +236,11 @@ function renderSuggestions() {
                 </button>
               `
               : ""
-          }
+            }
+          </div>
         </header>
         ${
-          isAdmin
+          isAdmin || isOwner
             ? `
               <p class="suggestion-post-content">
                 ${escapeHtml(suggestion.content)}
@@ -164,20 +249,24 @@ function renderSuggestions() {
             : `
               <p class="suggestion-post-private">
                 <span aria-hidden="true">🔒</span>
-                본문은 관리자만 확인할 수 있습니다.
+                본문은 관리자와 작성자만 확인할 수 있습니다.
               </p>
             `
-        }
+          }
       </article>
-    `)
+    `;
+    })
     .join("");
 }
 
 async function loadSuggestions() {
   suggestionList.setAttribute("aria-busy", "true");
 
-  const query = currentRole === "admin"
-    ? supabase
+  let data = [];
+  let error = null;
+
+  if (currentRole === "admin") {
+    const response = await supabase
       .from("suggestions")
       .select(`
         id,
@@ -187,18 +276,73 @@ async function loadSuggestions() {
         content,
         created_at
       `)
-    : supabase
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    data = response.data ?? [];
+    error = response.error;
+  } else {
+    const publicRequest = supabase
       .from("suggestion_public_list")
       .select(`
         id,
         masked_author_name,
         title,
         created_at
-      `);
+      `)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    const ownRequest = currentUser
+      ? supabase
+        .from("suggestions")
+        .select(`
+          id,
+          user_id,
+          author_name,
+          title,
+          content,
+          created_at
+        `)
+        .eq("user_id", currentUser.id)
+        .order("created_at", { ascending: false })
+        .limit(100)
+      : Promise.resolve({ data: [], error: null });
+    const [publicResponse, ownResponse] = await Promise.all([
+      publicRequest,
+      ownRequest
+    ]);
 
-  const { data, error } = await query
-    .order("created_at", { ascending: false })
-    .limit(100);
+    error = publicResponse.error || ownResponse.error;
+
+    if (!error) {
+      const ownSuggestions = new Map(
+        (ownResponse.data ?? []).map((suggestion) => [
+          String(suggestion.id),
+          suggestion
+        ])
+      );
+
+      data = (publicResponse.data ?? []).map(
+        (suggestion) =>
+          ownSuggestions.get(String(suggestion.id)) ?? suggestion
+      );
+
+      const publicIds = new Set(
+        data.map((suggestion) => String(suggestion.id))
+      );
+
+      for (const suggestion of ownResponse.data ?? []) {
+        if (!publicIds.has(String(suggestion.id))) {
+          data.push(suggestion);
+        }
+      }
+
+      data.sort(
+        (first, second) =>
+          new Date(second.created_at) - new Date(first.created_at)
+      );
+    }
+  }
 
   suggestionList.removeAttribute("aria-busy");
 
@@ -206,7 +350,7 @@ async function loadSuggestions() {
     suggestionList.innerHTML = `
       <div class="suggestion-empty is-error">
         <strong>건의사항을 불러오지 못했습니다.</strong>
-        <p>Supabase에서 건의사항 SQL을 실행했는지 확인해 주세요.</p>
+        <p>Supabase에서 최신 건의사항 SQL을 다시 실행했는지 확인해 주세요.</p>
       </div>
     `;
     showMessage(
@@ -240,25 +384,57 @@ async function submitSuggestion(event) {
     return;
   }
 
+  const isEditing = Boolean(editingSuggestionId);
+
   submitButton.disabled = true;
-  submitButton.textContent = "등록 중...";
+  submitButton.textContent = isEditing ? "수정 중..." : "등록 중...";
   showMessage("");
 
-  const { error } = await supabase
-    .from("suggestions")
-    .insert({ title, content });
+  let error = null;
+  let updatedSuggestion = null;
 
-  submitButton.disabled = false;
-  submitButton.textContent = "건의 접수";
+  if (isEditing) {
+    const response = await supabase
+      .from("suggestions")
+      .update({ title, content })
+      .eq("id", editingSuggestionId)
+      .eq("user_id", currentUser.id)
+      .select("id")
+      .maybeSingle();
+
+    error = response.error;
+    updatedSuggestion = response.data;
+  } else {
+    const response = await supabase
+      .from("suggestions")
+      .insert({ title, content });
+
+    error = response.error;
+  }
 
   if (error) {
-    showMessage(`게시글 등록 오류: ${error.message}`, true);
+    submitButton.disabled = false;
+    submitButton.textContent = isEditing
+      ? "수정 내용 저장"
+      : "건의 접수";
+    showMessage(
+      `게시글 ${isEditing ? "수정" : "등록"} 오류: ${error.message}`,
+      true
+    );
     return;
   }
 
-  suggestionForm.reset();
-  showMessage(
-    "건의사항이 접수되었습니다. 제목과 가린 이름은 표시되며 본문은 관리자만 확인할 수 있습니다."
+  if (isEditing && !updatedSuggestion) {
+    submitButton.disabled = false;
+    submitButton.textContent = "수정 내용 저장";
+    showMessage("본인이 작성한 건의사항만 수정할 수 있습니다.", true);
+    return;
+  }
+
+  resetSuggestionEditor();
+  showMessage(isEditing
+    ? "건의사항이 수정되었습니다."
+    : "건의사항이 접수되었습니다. 제목과 가린 이름은 표시되며 본문은 관리자와 작성자만 확인할 수 있습니다."
   );
 
   await loadSuggestions();
@@ -293,6 +469,9 @@ async function deleteSuggestion(suggestionId) {
   }
 
   showMessage("게시글이 삭제되었습니다.");
+  if (String(editingSuggestionId) === String(suggestion.id)) {
+    resetSuggestionEditor();
+  }
   await loadSuggestions();
 }
 
