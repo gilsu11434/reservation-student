@@ -1457,7 +1457,7 @@ reservationForm.addEventListener("submit", async (event) => {
 
     if (!reservationId) {
       message.textContent =
-        "예약은 생성됐지만 예약번호를 확인하지 못했습니다. 관리자에게 문의해 주세요.";
+        "예약은 생성됐지만 처리 정보를 확인하지 못했습니다. 관리자에게 문의해 주세요.";
       message.classList.add("error");
       return;
     }
@@ -1503,7 +1503,7 @@ reservationForm.addEventListener("submit", async (event) => {
     }
 
     message.textContent =
-      `예약 신청이 접수되었습니다. 관리자 승인 대기 중입니다. 예약번호: ${reservationId}`;
+      "예약 신청이 접수되었습니다. 관리자 승인 대기 중입니다.";
     message.classList.remove("error");
     message.classList.add("success");
 
