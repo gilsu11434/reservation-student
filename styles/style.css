@@ -2082,6 +2082,47 @@ input[type="file"]::file-selector-button {
   font-weight: 700;
 }
 
+.admin-upload-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-upload-status-card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.admin-upload-status-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-upload-status-heading > span:first-child {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-upload-status-card > strong {
+  color: var(--text);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-upload-status-card > small {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .admin-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2500,6 +2541,10 @@ input[type="file"]::file-selector-button {
   }
 
   .admin-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-upload-status-grid {
     grid-template-columns: 1fr;
   }
 

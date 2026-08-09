@@ -373,6 +373,68 @@ function getCertificateStatus(member) {
   };
 }
 
+function getCertificateUploadSummary(members) {
+  const participants = normalizeRelatedRows(members);
+  const summary = participants.reduce(
+    (result, member) => {
+      const certificateStatus = getCertificateStatus(member);
+
+      result[certificateStatus.status] += 1;
+      if (member.safety_certificate_path) {
+        result.submitted += 1;
+      }
+
+      return result;
+    },
+    {
+      total: participants.length,
+      submitted: 0,
+      missing: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0
+    }
+  );
+
+  if (summary.total === 0) {
+    return {
+      ...summary,
+      label: "참여자 없음",
+      className: "status-cancelled"
+    };
+  }
+
+  if (summary.rejected > 0) {
+    return {
+      ...summary,
+      label: "반려 있음",
+      className: "status-cancelled"
+    };
+  }
+
+  if (summary.missing > 0) {
+    return {
+      ...summary,
+      label: "미제출 있음",
+      className: "status-cancelled"
+    };
+  }
+
+  if (summary.pending > 0) {
+    return {
+      ...summary,
+      label: "승인 대기",
+      className: "status-documents_pending"
+    };
+  }
+
+  return {
+    ...summary,
+    label: "승인 완료",
+    className: "status-ready"
+  };
+}
+
 function renderDetailItem(label, value, className = "") {
   return `
     <div class="admin-detail-item${className ? ` ${className}` : ""}">
@@ -569,7 +631,7 @@ async function reviewUsageReport(button) {
 }
 
 function renderParticipants(reservation) {
-  const participants = reservation.reservation_members ?? [];
+  const participants = normalizeRelatedRows(reservation.reservation_members);
 
   if (participants.length === 0) {
     return `
@@ -692,6 +754,9 @@ function openReservationDetails(reservationId) {
   const reportStatus = latestReport
     ? getReportStatusInfo(latestReport.review_status)
     : null;
+  const certificateSummary = getCertificateUploadSummary(
+    reservation.reservation_members
+  );
   const reportDownloadName = latestReport
     ? `이용확인서_${sanitizeFilePart(reservation.requester_name)}_` +
       `${getReservationDateKey(reservation)}.` +
@@ -721,6 +786,47 @@ function openReservationDetails(reservationId) {
         <span class="status-badge status-${status}">
           ${escapeHtml(getStatusLabel(reservation.status))}
         </span>
+      </div>
+    </section>
+
+    <section class="admin-detail-section admin-upload-overview">
+      <div class="admin-detail-section-heading">
+        <h3>파일 업로드 현황</h3>
+        <span>수료증과 이용확인서를 한눈에 확인합니다.</span>
+      </div>
+      <div class="admin-upload-status-grid">
+        <article class="admin-upload-status-card">
+          <div class="admin-upload-status-heading">
+            <span>참여자 수료증</span>
+            <span class="status-badge ${certificateSummary.className}">
+              ${escapeHtml(certificateSummary.label)}
+            </span>
+          </div>
+          <strong>
+            ${certificateSummary.submitted} / ${certificateSummary.total}명 제출
+          </strong>
+          <small>
+            승인 ${certificateSummary.approved}명 ·
+            대기 ${certificateSummary.pending}명 ·
+            반려 ${certificateSummary.rejected}명 ·
+            미제출 ${certificateSummary.missing}명
+          </small>
+        </article>
+
+        <article class="admin-upload-status-card">
+          <div class="admin-upload-status-heading">
+            <span>이용확인서</span>
+            ${latestReport
+              ? `<span class="status-badge ${reportStatus.className}">${escapeHtml(reportStatus.label)}</span>`
+              : `<span class="status-badge status-cancelled">미제출</span>`}
+          </div>
+          <strong>${latestReport ? "제출 완료" : "미제출"}</strong>
+          <small>
+            ${latestReport
+              ? `제출 일시 ${escapeHtml(formatDateTime(latestReport.created_at))}`
+              : "아직 업로드된 이용확인서가 없습니다."}
+          </small>
+        </article>
       </div>
     </section>
 
@@ -801,7 +907,7 @@ function openReservationDetails(reservationId) {
     <section class="admin-detail-section">
       <div class="admin-detail-section-heading">
         <h3>참여자 정보</h3>
-        <span>${reservation.reservation_members?.length ?? 0}명</span>
+        <span>${certificateSummary.total}명</span>
       </div>
       ${renderParticipants(reservation)}
     </section>
