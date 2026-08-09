@@ -160,11 +160,13 @@ begin
   );
 
   if nullif(v_professor_name, '') is null then
-    raise exception '담당 교수님 이름을 입력해 주세요.';
+    raise exception '종합설계 지도교수님 이름을 입력해 주세요.';
   end if;
 
-  if v_professor_name !~ '^[가-힣A-Za-z·ㆍ ]{2,30}$' then
-    raise exception '담당 교수님은 이름만 입력해 주세요.';
+  if v_professor_name !~ '^[가-힣A-Za-z·ㆍ ]+$'
+    or char_length(regexp_replace(v_professor_name, '[ ·ㆍ]', '', 'g')) < 2
+    or char_length(v_professor_name) > 30 then
+    raise exception '종합설계 지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)';
   end if;
 
   update public.reservations as reservation

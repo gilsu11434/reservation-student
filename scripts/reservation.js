@@ -95,8 +95,7 @@ graduationProfessorInput.addEventListener("blur", () => {
 
 function sanitizeProfessorName(value) {
   return String(value ?? "")
-    .replace(/교수님?/g, "")
-    .replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z·ㆍ\s]/g, "")
+    .replace(/\s*교수님?\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .slice(0, 30);
 }
@@ -106,11 +105,11 @@ function normalizeProfessorName(value) {
 }
 
 function isValidProfessorName(value) {
-  const characters = Array.from(value.replace(/\s/g, ""));
+  const letters = value.match(/[가-힣a-zA-Z]/g) ?? [];
 
   return (
-    characters.length >= 2 &&
-    characters.length <= 30 &&
+    letters.length >= 2 &&
+    Array.from(value).length <= 30 &&
     /^[가-힣a-zA-Z·ㆍ ]+$/.test(value)
   );
 }
@@ -1076,7 +1075,7 @@ document
 
     if (!isValidProfessorName(graduationProfessor)) {
       message.textContent =
-        "종합설계 지도교수님은 ‘교수님’을 제외한 이름만 입력해 주세요.";
+        "종합설계 지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)";
       message.classList.remove("success");
       message.classList.add("error");
       graduationProfessorInput.focus();
