@@ -1294,10 +1294,11 @@ input[type="file"]::file-selector-button {
 }
 
 .hero h1 {
-  max-width: 690px;
+  max-width: none;
   margin-bottom: 18px;
-  font-size: clamp(38px, 6vw, 64px);
+  font-size: clamp(36px, 5.3vw, 56px);
   line-height: 1.08;
+  white-space: nowrap;
 }
 
 .hero-copy > p:not(.eyebrow) {
