@@ -1310,8 +1310,18 @@ input[type="file"]::file-selector-button {
 
 .hero-actions {
   display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.hero-primary-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-primary-actions .button {
+  width: 100%;
 }
 
 .room-panel {
