@@ -339,6 +339,18 @@ function renderReservations() {
             </div>
           </div>
 
+          <section class="reservation-admin-comment" aria-label="관리자 코멘트">
+            <div class="reservation-admin-comment-heading">
+              <strong>관리자 코멘트</strong>
+              ${reservation.admin_comment_updated_at
+                ? `<span>${escapeHtml(formatDate(reservation.admin_comment_updated_at))} 수정</span>`
+                : ""}
+            </div>
+            ${reservation.admin_comment
+              ? `<p>${escapeHtml(reservation.admin_comment)}</p>`
+              : `<p class="muted">아직 등록된 관리자 코멘트가 없습니다.</p>`}
+          </section>
+
           ${
             !reservationCancelled && !usageEnded
               ? `

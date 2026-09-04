@@ -181,6 +181,19 @@ reservationDetailContent.addEventListener("click", async (event) => {
   }
 });
 
+reservationDetailContent.addEventListener("submit", async (event) => {
+  const commentForm = event.target.closest(
+    "[data-admin-comment-form]"
+  );
+
+  if (!commentForm) {
+    return;
+  }
+
+  event.preventDefault();
+  await saveAdminComment(commentForm);
+});
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -767,6 +780,56 @@ async function reviewUsageReport(button) {
   openReservationDetails(reservationId);
 }
 
+async function saveAdminComment(form) {
+  const reservationId = form.dataset.reservationId;
+  const textarea = form.elements.adminComment;
+  const submitButton = form.querySelector("button[type='submit']");
+  const statusElement = form.querySelector("[data-admin-comment-status]");
+  const comment = textarea.value.trim();
+
+  if (comment.length > 1000) {
+    statusElement.textContent =
+      "관리자 코멘트는 1,000자 이하로 입력해 주세요.";
+    statusElement.classList.add("is-error");
+    textarea.focus();
+    return;
+  }
+
+  submitButton.disabled = true;
+  textarea.disabled = true;
+  statusElement.textContent = "저장 중입니다.";
+  statusElement.classList.remove("is-error");
+
+  const { error } = await supabase.rpc(
+    "admin_set_reservation_comment",
+    {
+      p_reservation_id: reservationId,
+      p_comment: comment || null
+    }
+  );
+
+  if (error) {
+    statusElement.textContent = `저장 오류: ${error.message}`;
+    statusElement.classList.add("is-error");
+    submitButton.disabled = false;
+    textarea.disabled = false;
+    return;
+  }
+
+  await loadReservations();
+  openReservationDetails(reservationId);
+
+  const refreshedStatus = reservationDetailContent.querySelector(
+    "[data-admin-comment-status]"
+  );
+
+  if (refreshedStatus) {
+    refreshedStatus.textContent = comment
+      ? "사용자에게 보일 코멘트를 저장했습니다."
+      : "관리자 코멘트를 삭제했습니다.";
+  }
+}
+
 function renderParticipants(reservation) {
   const participants = normalizeRelatedRows(reservation.reservation_members);
 
@@ -1005,6 +1068,37 @@ function openReservationDetails(reservationId) {
           `
           : ""
       }
+    </section>
+
+    <section class="admin-detail-section admin-comment-section">
+      <div class="admin-detail-section-heading">
+        <h3>사용자에게 보일 관리자 코멘트</h3>
+        ${reservation.admin_comment_updated_at
+          ? `<span>최근 저장 ${escapeHtml(formatDateTime(reservation.admin_comment_updated_at))}</span>`
+          : `<span>아직 등록되지 않음</span>`}
+      </div>
+      <p class="admin-comment-help">
+        이 내용은 사용자의 ‘내 예약’ 페이지에 그대로 표시됩니다.
+      </p>
+      <form
+        class="admin-comment-form"
+        data-admin-comment-form
+        data-reservation-id="${escapeHtml(reservation.id)}"
+      >
+        <textarea
+          name="adminComment"
+          maxlength="1000"
+          rows="4"
+          placeholder="예약자에게 안내할 내용을 입력하세요."
+          aria-label="사용자에게 보일 관리자 코멘트"
+        >${escapeHtml(reservation.admin_comment ?? "")}</textarea>
+        <div class="admin-comment-form-footer">
+          <small data-admin-comment-status role="status">
+            내용을 비우고 저장하면 기존 코멘트가 삭제됩니다.
+          </small>
+          <button type="submit">코멘트 저장</button>
+        </div>
+      </form>
     </section>
 
     <section class="admin-detail-section">

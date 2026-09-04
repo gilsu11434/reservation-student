@@ -1310,18 +1310,8 @@ input[type="file"]::file-selector-button {
 
 .hero-actions {
   display: flex;
-  align-items: flex-start;
   flex-wrap: wrap;
   gap: 10px;
-}
-
-.hero-primary-actions {
-  display: grid;
-  gap: 10px;
-}
-
-.hero-primary-actions .button {
-  width: 100%;
 }
 
 .room-panel {
@@ -1615,6 +1605,46 @@ input[type="file"]::file-selector-button {
 .reservation-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.reservation-admin-comment {
+  margin: 18px 0;
+  padding: 15px 16px;
+  border: 1px solid #b9ded4;
+  border-left: 4px solid var(--brand);
+  border-radius: 11px;
+  background: var(--surface-accent);
+}
+
+.reservation-admin-comment-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.reservation-admin-comment-heading strong {
+  color: var(--brand-dark);
+  font-size: 14px;
+}
+
+.reservation-admin-comment-heading span {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.reservation-admin-comment p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.reservation-admin-comment p.muted {
+  color: var(--text-soft);
 }
 
 /* Suggestions */
@@ -2372,6 +2402,43 @@ input[type="file"]::file-selector-button {
   font-size: 13px;
 }
 
+.admin-comment-help {
+  margin: -4px 0 12px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.admin-comment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-comment-form textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+}
+
+.admin-comment-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-comment-form-footer small {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.admin-comment-form-footer small.is-error {
+  color: var(--danger-dark);
+}
+
+.admin-comment-form-footer button {
+  flex: 0 0 auto;
+}
+
 .admin-document-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2876,6 +2943,16 @@ input[type="file"]::file-selector-button {
 
   .reservation-status-group {
     justify-content: flex-start;
+  }
+
+  .reservation-admin-comment-heading,
+  .admin-comment-form-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-comment-form-footer button {
+    width: 100%;
   }
 
   .admin-document-toolbar {
