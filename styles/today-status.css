@@ -6,8 +6,8 @@
 .home-container .today-reservation-panel {
   position: absolute;
   top: 44px;
-  right: auto;
-  left: calc(50% - 50vw + 8px);
+  right: calc(100% + 20px);
+  left: auto;
   z-index: 5;
   width: clamp(
     78px,
