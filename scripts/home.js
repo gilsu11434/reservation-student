@@ -62,15 +62,15 @@ function renderSlots(bookings) {
     const slotEnd = getSlotBoundary(dateKey, hour + 1);
     const booked = isSlotBooked(bookings, slotStart, slotEnd);
     const timeLabel = `${formatHour(hour)} – ${formatHour(hour + 1)}`;
-    const stateLabel = booked ? "예약됨" : "예약 가능";
+    const displayTimeLabel = `${formatHour(hour)}–${formatHour(hour + 1)}`;
+    const stateLabel = booked ? "예약됨" : "미예약";
 
     rows.push(`
       <div
         class="today-reservation-slot${booked ? " is-booked" : ""}"
         aria-label="${timeLabel} ${stateLabel}"
       >
-        <span class="today-reservation-time">${timeLabel}</span>
-        <span class="today-reservation-state">${stateLabel}</span>
+        <span class="today-reservation-time">${displayTimeLabel}</span>
       </div>
     `);
   }

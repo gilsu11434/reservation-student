@@ -1,0 +1,219 @@
+/* 메인 페이지 왼쪽 금일 예약 현황 전용 스타일 */
+.home-container {
+  position: relative;
+}
+
+.home-container .today-reservation-panel {
+  position: absolute;
+  top: 44px;
+  right: auto;
+  left: calc(50% - 50vw + 8px);
+  z-index: 5;
+  width: clamp(
+    78px,
+    calc(50vw - 576px),
+    220px
+  );
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #f8faf9;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-container .today-reservation-heading {
+  margin-bottom: 12px;
+}
+
+.home-container .today-reservation-heading .eyebrow {
+  margin-bottom: 3px;
+}
+
+.home-container .today-reservation-heading h2 {
+  margin-bottom: 3px;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.home-container .today-reservation-heading .muted {
+  margin: 0;
+  font-size: 12px;
+}
+
+.home-container .today-reservation-slots {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.home-container .today-reservation-slot {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 7px;
+  border: 1px solid #d8dde2;
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  text-align: center;
+}
+
+.home-container .today-reservation-slot.is-booked {
+  border-color: #c4c8cd;
+  background: #d9dcdf;
+  color: #50565e;
+}
+
+.home-container .today-reservation-time {
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.home-container .today-reservation-loading,
+.home-container .today-reservation-error {
+  margin: 0;
+  padding: 14px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.home-container .today-reservation-error {
+  color: var(--danger-dark);
+  background: #fff4f3;
+}
+
+.home-container .today-reservation-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 10px;
+  margin-top: 12px;
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.home-container .today-reservation-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.home-container .today-reservation-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid #d8dde2;
+  border-radius: 3px;
+  background: #ffffff;
+}
+
+.home-container .today-reservation-legend i.is-booked {
+  border-color: #c4c8cd;
+  background: #d9dcdf;
+}
+
+@media (min-width: 1281px) and (max-width: 1500px) {
+  .home-container .today-reservation-panel {
+    padding: 8px 6px;
+  }
+
+  .home-container .today-reservation-heading h2 {
+    font-size: 14px;
+  }
+
+  .home-container .today-reservation-heading .eyebrow,
+  .home-container .today-reservation-heading .muted {
+    font-size: 10px;
+  }
+
+  .home-container .today-reservation-slot {
+    min-height: 32px;
+    padding: 6px 2px;
+  }
+
+  .home-container .today-reservation-time {
+    font-size: 10px;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  .home-container .today-reservation-panel {
+    width: 68px;
+    padding: 7px 3px;
+  }
+
+  .home-container .today-reservation-heading h2 {
+    font-size: 13px;
+  }
+
+  .home-container .today-reservation-heading .eyebrow,
+  .home-container .today-reservation-heading .muted {
+    font-size: 9px;
+  }
+
+  .home-container .today-reservation-slot {
+    min-height: 30px;
+    padding: 5px 1px;
+  }
+
+  .home-container .today-reservation-time {
+    font-size: 9px;
+    letter-spacing: -0.03em;
+  }
+
+  .home-container .today-reservation-legend {
+    gap: 5px;
+    font-size: 9px;
+  }
+}
+
+/* 실제 모바일 크기에서만 겹침 방지용 상단 배치를 사용합니다. */
+@media (max-width: 900px) {
+  .home-container .today-reservation-panel {
+    position: static;
+    width: 100%;
+    margin-bottom: 20px;
+    padding: 16px;
+  }
+
+  .home-container .today-reservation-slots {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .home-container .today-reservation-heading h2 {
+    font-size: 18px;
+  }
+
+  .home-container .today-reservation-heading .eyebrow,
+  .home-container .today-reservation-heading .muted {
+    font-size: 12px;
+  }
+
+  .home-container .today-reservation-slot {
+    min-height: 36px;
+    padding: 8px 7px;
+  }
+
+  .home-container .today-reservation-time {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 700px) {
+  .home-container .today-reservation-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .home-container .today-reservation-slots {
+    grid-template-columns: 1fr;
+  }
+}
