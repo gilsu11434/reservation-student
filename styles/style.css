@@ -1314,6 +1314,13 @@ input[type="file"]::file-selector-button {
   gap: 10px;
 }
 
+.hero-primary-actions {
+  display: flex;
+  flex: 0 0 100%;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .room-panel {
   padding: 26px;
   border: 1px solid rgba(255, 255, 255, 0.9);
