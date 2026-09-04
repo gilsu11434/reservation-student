@@ -8,7 +8,7 @@
     content="창의융합프로젝트실 이용 안내와 온라인 예약 서비스"
   >
   <title>창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260824-reservation-manual">
+  <link rel="stylesheet" href="./styles/style.css?v=20260904-today-status">
 </head>
 <body>
   <header class="app-header">
@@ -27,7 +27,33 @@
     </nav>
   </header>
 
-  <main class="container">
+  <main class="container home-container">
+    <aside
+      class="today-reservation-panel"
+      aria-labelledby="today-reservation-title"
+    >
+      <div class="today-reservation-heading">
+        <p class="eyebrow">Today</p>
+        <h2 id="today-reservation-title">금일 예약 현황</h2>
+        <p id="today-reservation-date" class="muted"></p>
+      </div>
+
+      <div
+        id="today-reservation-slots"
+        class="today-reservation-slots"
+        aria-live="polite"
+      >
+        <p class="today-reservation-loading">
+          예약 현황을 불러오는 중입니다.
+        </p>
+      </div>
+
+      <div class="today-reservation-legend" aria-label="예약 현황 색상 안내">
+        <span><i class="is-available" aria-hidden="true"></i>예약 가능</span>
+        <span><i class="is-booked" aria-hidden="true"></i>예약됨</span>
+      </div>
+    </aside>
+
     <section class="hero">
       <div class="hero-copy">
         <p class="eyebrow">Creative Project Room</p>
@@ -121,5 +147,7 @@
   <footer class="footer-note">
     창의융합프로젝트실 · 207관 605-1호
   </footer>
+
+  <script type="module" src="./scripts/home.js?v=20260904-today-status"></script>
 </body>
 </html>
