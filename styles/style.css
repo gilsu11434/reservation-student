@@ -2639,6 +2639,30 @@ input[type="file"]::file-selector-button {
   margin-top: 18px;
 }
 
+.admin-delete-section {
+  padding: 18px;
+  border: 1px solid #f0b4ae;
+  border-radius: 12px;
+  background: #fff8f7;
+}
+
+.admin-detail-section + .admin-delete-section {
+  border-top: 1px solid #f0b4ae;
+}
+
+.admin-delete-section h3 {
+  margin-bottom: 8px;
+  color: var(--danger-dark);
+}
+
+.admin-delete-warning {
+  margin-bottom: 0;
+  color: var(--danger-dark);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
 .filter-row {
   display: flex;
   justify-content: flex-end;

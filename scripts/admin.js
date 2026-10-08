@@ -145,6 +145,15 @@ reservationDetailContent.addEventListener("click", async (event) => {
     return;
   }
 
+  const reservationDeleteButton = event.target.closest(
+    "[data-reservation-delete]"
+  );
+
+  if (reservationDeleteButton) {
+    await deleteReservation(reservationDeleteButton);
+    return;
+  }
+
   const reservationDecisionButton = event.target.closest(
     "[data-reservation-decision]"
   );
@@ -727,6 +736,113 @@ async function reviewReservation(button) {
   openReservationDetails(reservationId);
 }
 
+function getReservationStoragePaths(reservation) {
+  const certificatePaths = normalizeRelatedRows(
+    reservation.reservation_members
+  )
+    .map((member) => member.safety_certificate_path)
+    .filter(Boolean);
+  const reportPaths = normalizeRelatedRows(
+    reservation.usage_reports
+  )
+    .map((report) => report.file_path)
+    .filter(Boolean);
+
+  return {
+    certificatePaths: [...new Set(certificatePaths)],
+    reportPaths: [...new Set(reportPaths)]
+  };
+}
+
+async function removeStoredReservationFiles(bucket, paths) {
+  if (paths.length === 0) {
+    return null;
+  }
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .remove(paths);
+
+  return error;
+}
+
+async function deleteReservation(button) {
+  const reservationId = button.dataset.reservationId;
+  const reservation = allReservations.find(
+    (item) => String(item.id) === String(reservationId)
+  );
+
+  if (!reservation) {
+    showMessage("삭제할 예약 정보를 찾지 못했습니다.", true);
+    return;
+  }
+
+  const reservationLabel =
+    `${formatDateDetail(reservation.start_at)} ` +
+    `${formatTime(reservation.start_at)}~` +
+    `${formatTime(reservation.effective_end_at || reservation.end_at)}`;
+  const confirmed = confirm(
+    `${reservationLabel} 예약을 완전히 삭제하시겠습니까?\n\n` +
+    "예약 정보, 참여자 정보, 수료증·이용확인서 기록과 업로드 파일이 모두 삭제됩니다. " +
+    "이 작업은 복구할 수 없습니다."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const { certificatePaths, reportPaths } =
+    getReservationStoragePaths(reservation);
+  const originalLabel = button.textContent;
+
+  button.disabled = true;
+  button.textContent = "삭제 중...";
+
+  const { error: deleteError } = await supabase.rpc(
+    "admin_delete_reservation",
+    {
+      p_reservation_id: reservationId
+    }
+  );
+
+  if (deleteError) {
+    showMessage(`예약 삭제 오류: ${deleteError.message}`, true);
+    button.disabled = false;
+    button.textContent = originalLabel;
+    return;
+  }
+
+  const [certificateCleanupError, reportCleanupError] =
+    await Promise.all([
+      removeStoredReservationFiles(
+        "safety-certificates",
+        certificatePaths
+      ),
+      removeStoredReservationFiles(
+        "usage-reports",
+        reportPaths
+      )
+    ]);
+  const cleanupErrors = [
+    certificateCleanupError,
+    reportCleanupError
+  ].filter(Boolean);
+
+  closeReservationDetails();
+  await loadReservations();
+
+  if (cleanupErrors.length > 0) {
+    showMessage(
+      "예약과 관련 데이터는 삭제했지만 일부 업로드 파일을 삭제하지 못했습니다. " +
+      cleanupErrors.map((error) => error.message).join(" / "),
+      true
+    );
+    return;
+  }
+
+  showMessage("예약과 관련 데이터 및 업로드 파일을 완전히 삭제했습니다.");
+}
+
 async function reviewUsageReport(button) {
   const reservationId = button.dataset.reservationId;
   const decision = button.dataset.reportDecision;
@@ -1068,6 +1184,24 @@ function openReservationDetails(reservationId) {
           `
           : ""
       }
+    </section>
+
+    <section class="admin-detail-section admin-delete-section">
+      <div class="admin-detail-section-heading">
+        <h3>예약 완전 삭제</h3>
+      </div>
+      <p class="admin-delete-warning">
+        승인 여부와 관계없이 이 예약과 참여자·제출 문서 기록을 데이터베이스에서 삭제합니다.
+        업로드된 수료증과 이용확인서 파일도 함께 삭제되며 복구할 수 없습니다.
+      </p>
+      <div class="admin-actions">
+        <button
+          type="button"
+          class="danger-button"
+          data-reservation-id="${escapeHtml(reservation.id)}"
+          data-reservation-delete
+        >예약 완전 삭제</button>
+      </div>
     </section>
 
     <section class="admin-detail-section admin-comment-section">

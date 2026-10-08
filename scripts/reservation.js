@@ -57,6 +57,8 @@ let selectedEndHour = null;
 let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
+let reservationHolidays = new Map();
+let reservationHolidaysLoaded = false;
 let professorNameComposing = false;
 let activeReservationErrorInput = null;
 
@@ -235,6 +237,16 @@ async function initialize() {
 
   setDateLimits();
   updateTimeSlotAvailability();
+  const holidaysReady = await loadReservationHolidays();
+
+  if (!holidaysReady) {
+    reservationMessage.textContent =
+      "공휴일 정보를 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
+    reservationMessage.classList.remove("success");
+    reservationMessage.classList.add("error");
+    return;
+  }
+
   await ensureReservationTeam(profile);
   await loadBookedSlots();
 }
@@ -919,8 +931,15 @@ function selectReservationDate(dateValue) {
   const outsideRange =
     selectedDate < calendarMinimumDate ||
     selectedDate > calendarMaximumDate;
+  const holiday = reservationHolidays.has(dateValue);
 
-  if (outsideRange || weekday === 0 || weekday === 6) {
+  if (
+    outsideRange ||
+    weekday === 0 ||
+    weekday === 6 ||
+    !reservationHolidaysLoaded ||
+    holiday
+  ) {
     return;
   }
 
@@ -968,7 +987,10 @@ function renderReservationCalendar() {
     const weekend = weekday === 0 || weekday === 6;
     const outsideRange =
       date < calendarMinimumDate || date > calendarMaximumDate;
-    const disabled = weekend || outsideRange;
+    const holidayName = reservationHolidays.get(dateValue) ?? "";
+    const holiday = Boolean(holidayName);
+    const disabled =
+      weekend || outsideRange || holiday || !reservationHolidaysLoaded;
     const button = document.createElement("button");
 
     button.type = "button";
@@ -980,10 +1002,16 @@ function renderReservationCalendar() {
     button.setAttribute("aria-disabled", String(disabled));
     button.setAttribute(
       "aria-label",
-      disabled
-        ? `${dateValue} 선택 불가`
-        : `${dateValue} 예약 날짜 선택`
+      holiday
+        ? `${dateValue} ${holidayName}, 공휴일 선택 불가`
+        : disabled
+          ? `${dateValue} 선택 불가`
+          : `${dateValue} 예약 날짜 선택`
     );
+
+    if (holiday) {
+      button.title = `${holidayName} (공휴일)`;
+    }
 
     if (weekend) {
       button.classList.add("weekend");
@@ -1043,6 +1071,48 @@ function setDateLimits() {
   );
   closeReservationCalendar();
   renderReservationCalendar();
+}
+
+async function loadReservationHolidays() {
+  if (!calendarMinimumDate || !calendarMaximumDate) {
+    return false;
+  }
+
+  reservationHolidaysLoaded = false;
+  renderReservationCalendar();
+
+  const { data, error } = await supabase.rpc(
+    "get_reservation_holidays",
+    {
+      p_from: toLocalDateValue(calendarMinimumDate),
+      p_to: toLocalDateValue(calendarMaximumDate)
+    }
+  );
+
+  if (error) {
+    reservationHolidays = new Map();
+    renderReservationCalendar();
+    return false;
+  }
+
+  reservationHolidays = new Map(
+    (data ?? []).map((holiday) => [
+      holiday.holiday_date,
+      holiday.holiday_name
+    ])
+  );
+  reservationHolidaysLoaded = true;
+
+  if (reservationHolidays.has(reservationDateInput.value)) {
+    reservationDateInput.value = "";
+    calendarValue.textContent = "연도-월-일";
+    calendarToggle.classList.remove("has-value");
+    resetSelectedTimeSlots();
+    updateTimeSlotAvailability();
+  }
+
+  renderReservationCalendar();
+  return true;
 }
 
 async function loadBookedSlots() {
@@ -1241,6 +1311,34 @@ reservationForm.addEventListener("submit", async (event) => {
       showReservationFieldError(
         calendarToggle,
         "예약 날짜를 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!reservationHolidaysLoaded) {
+      showReservationFieldError(
+        calendarToggle,
+        "공휴일 정보를 확인하지 못했습니다. 페이지를 새로고침해 주세요."
+      );
+      return;
+    }
+
+    const selectedDate = parseLocalDateValue(date);
+    const selectedWeekday = selectedDate.getDay();
+    const selectedHolidayName = reservationHolidays.get(date);
+
+    if (selectedWeekday === 0 || selectedWeekday === 6) {
+      showReservationFieldError(
+        calendarToggle,
+        "토요일과 일요일에는 예약할 수 없습니다."
+      );
+      return;
+    }
+
+    if (selectedHolidayName) {
+      showReservationFieldError(
+        calendarToggle,
+        `${selectedHolidayName} 공휴일에는 예약할 수 없습니다.`
       );
       return;
     }
@@ -1529,6 +1627,7 @@ reservationForm.addEventListener("submit", async (event) => {
 
     setDateLimits();
 
+    await loadReservationHolidays();
     await loadBookedSlots();
   });
 
