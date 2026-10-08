@@ -42,6 +42,9 @@ const graduationProfessorInput = document.getElementById(
 const equipmentInput = document.getElementById("equipment");
 const purposeInput = document.getElementById("purpose");
 const rulesAgreedInput = document.getElementById("rules-agreed");
+const equipmentRestrictionAgreedInput = document.getElementById(
+  "equipment-restriction-agreed"
+);
 const reservationMessage = document.getElementById(
   "reservation-message"
 );
@@ -1276,6 +1279,14 @@ reservationForm.addEventListener("submit", async (event) => {
       return;
     }
 
+    if (!equipmentRestrictionAgreedInput.checked) {
+      showReservationFieldError(
+        equipmentRestrictionAgreedInput,
+        "실내에 비치된 장비만 사용한다는 안내를 확인하고 동의해 주세요."
+      );
+      return;
+    }
+
     if (!currentTeamId) {
       message.textContent =
         "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
@@ -1438,8 +1449,8 @@ reservationForm.addEventListener("submit", async (event) => {
         p_end_at: endAt,
 
         p_rules_agreed:
-          document.getElementById("rules-agreed")
-            .checked
+          rulesAgreedInput.checked &&
+          equipmentRestrictionAgreedInput.checked
       }
     );
 

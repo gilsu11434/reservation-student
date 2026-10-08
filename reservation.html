@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260809-top-down-validation">
+  <link rel="stylesheet" href="./styles/style.css?v=20261008-equipment-agreement">
 </head>
 <body>
   <header class="app-header">
@@ -256,6 +256,15 @@
               <span>이용수칙과 파손·분실 책임 규정을 확인하고 동의합니다.</span>
             </label>
 
+            <label class="checkbox-label checkbox-label-danger field-full">
+              <input id="equipment-restriction-agreed" type="checkbox" required>
+              <span>
+                창의융합실 이용 시 <strong>실내에 비치된 장비만 사용</strong>해 주시기 바랍니다.
+                외부 실험실의 장비를 임의로 반입하여 사용하는 경우,
+                <strong>창의융합실 이용이 제한될 수 있습니다.</strong>
+              </span>
+            </label>
+
             <section
               class="reservation-rules-notice field-full"
               aria-labelledby="reservation-rules-title"
@@ -290,6 +299,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20260809-hide-reservation-number"></script>
+  <script type="module" src="./scripts/reservation.js?v=20261008-equipment-agreement"></script>
 </body>
 </html>

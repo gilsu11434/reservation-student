@@ -516,6 +516,15 @@ input[type="file"]::file-selector-button {
   accent-color: var(--brand);
 }
 
+.checkbox-label-danger span {
+  color: var(--danger-dark);
+  font-weight: 800;
+}
+
+.checkbox-label-danger strong {
+  font-weight: 900;
+}
+
 .reservation-rules-notice {
   padding: 18px 20px;
   border: 1px solid #f1d3a8;
