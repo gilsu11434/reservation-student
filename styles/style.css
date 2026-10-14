@@ -2104,6 +2104,30 @@ input[type="file"]::file-selector-button {
   transform: translateY(-1px);
 }
 
+.calendar-reservation-item.is-report-review-pending {
+  border-color: #efc7c7;
+  border-left-color: #d66767;
+  background: #fff1f1;
+}
+
+.calendar-reservation-item.is-report-review-pending:hover {
+  border-color: #e8aaaa;
+  border-left-color: #c34f4f;
+  background: #ffe7e7;
+}
+
+.calendar-reservation-item.is-certificate-review-pending {
+  border-color: #c6daf0;
+  border-left-color: #5b91c7;
+  background: #eef6ff;
+}
+
+.calendar-reservation-item.is-certificate-review-pending:hover {
+  border-color: #a9caea;
+  border-left-color: #3e78b1;
+  background: #e2f0ff;
+}
+
 .calendar-reservation-item:active {
   transform: translateY(0);
 }

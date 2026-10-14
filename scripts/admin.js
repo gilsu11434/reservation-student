@@ -1422,6 +1422,57 @@ function groupReservationsByDate() {
   return grouped;
 }
 
+function getReservationCardState(reservation) {
+  const now = Date.now();
+  const startTime = new Date(reservation.start_at).getTime();
+  const endTime = new Date(
+    reservation.effective_end_at || reservation.end_at
+  ).getTime();
+  const latestReport = getLatestReport(
+    reservation.usage_reports
+  );
+  const reportReviewStatus =
+    reservation.usage_report_review_status ??
+    latestReport?.review_status ??
+    "pending";
+  const hasUnapprovedReport = Boolean(latestReport?.file_path) &&
+    reportReviewStatus !== "approved";
+
+  if (
+    Number.isFinite(endTime) &&
+    now >= endTime &&
+    hasUnapprovedReport
+  ) {
+    return {
+      className: "is-report-review-pending",
+      label: "이용확인서 승인 필요"
+    };
+  }
+
+  const hasUnapprovedCertificate = normalizeRelatedRows(
+    reservation.reservation_members
+  ).some((member) => (
+    Boolean(member.safety_certificate_path) &&
+    getCertificateStatus(member).status !== "approved"
+  ));
+
+  if (
+    Number.isFinite(startTime) &&
+    now < startTime &&
+    hasUnapprovedCertificate
+  ) {
+    return {
+      className: "is-certificate-review-pending",
+      label: "수료증 승인 필요"
+    };
+  }
+
+  return {
+    className: "",
+    label: ""
+  };
+}
+
 function renderReservation(reservation) {
   const requesterName =
     reservation.requester_name || "이름 없음";
@@ -1432,13 +1483,21 @@ function renderReservation(reservation) {
   const approvalStatus = getApprovalStatusInfo(
     reservation.approval_status ?? "approved"
   );
+  const cardState = getReservationCardState(reservation);
+  const cardClassName = [
+    "calendar-reservation-item",
+    cardState.className
+  ].filter(Boolean).join(" ");
+  const cardStateLabel = cardState.label
+    ? `, ${cardState.label}`
+    : "";
 
   return `
     <button
       type="button"
-      class="calendar-reservation-item"
+      class="${cardClassName}"
       data-reservation-id="${escapeHtml(reservation.id)}"
-      aria-label="${escapeHtml(requesterName)} ${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지 예약 상세정보 보기"
+      aria-label="${escapeHtml(requesterName)} ${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지${escapeHtml(cardStateLabel)} 예약 상세정보 보기"
     >
       <strong class="calendar-reservation-name">
         ${escapeHtml(requesterName)}
