@@ -77,6 +77,7 @@ const seoulDateTimeFormatter = new Intl.DateTimeFormat(
 );
 
 let allReservations = [];
+let allTimeBlocks = [];
 let visibleYear;
 let visibleMonth;
 
@@ -1422,6 +1423,28 @@ function groupReservationsByDate() {
   return grouped;
 }
 
+function groupTimeBlocksByDate() {
+  const grouped = new Map();
+
+  allTimeBlocks
+    .slice()
+    .sort(
+      (first, second) =>
+        new Date(first.start_at) - new Date(second.start_at)
+    )
+    .forEach((timeBlock) => {
+      const dateKey = getReservationDateKey(timeBlock);
+
+      if (!grouped.has(dateKey)) {
+        grouped.set(dateKey, []);
+      }
+
+      grouped.get(dateKey).push(timeBlock);
+    });
+
+  return grouped;
+}
+
 function getReservationCardState(reservation) {
   const now = Date.now();
   const startTime = new Date(reservation.start_at).getTime();
@@ -1517,8 +1540,33 @@ function renderReservation(reservation) {
   `;
 }
 
+function renderTimeBlock(timeBlock) {
+  const startTime = formatTime(timeBlock.start_at);
+  const endTime = formatTime(timeBlock.end_at);
+  const reason = timeBlock.reason || "관리자 지정";
+
+  return `
+    <div
+      class="calendar-time-block"
+      aria-label="${escapeHtml(startTime)}부터 ${escapeHtml(endTime)}까지 예약 제한, ${escapeHtml(reason)}"
+    >
+      <strong class="calendar-time-block-title">예약 제한</strong>
+      <span class="calendar-reservation-time">
+        <strong>${escapeHtml(startTime)}</strong>
+        <span aria-hidden="true">~</span>
+        <span>${escapeHtml(endTime)}</span>
+      </span>
+      <span class="calendar-time-block-reason">
+        ${escapeHtml(reason)}
+      </span>
+      <a href="./admin-time-blocks.html">제한 관리</a>
+    </div>
+  `;
+}
+
 function renderCalendar() {
   const reservationsByDate = groupReservationsByDate();
+  const timeBlocksByDate = groupTimeBlocksByDate();
   const firstWeekday = new Date(
     Date.UTC(visibleYear, visibleMonth - 1, 1)
   ).getUTCDay();
@@ -1575,6 +1623,23 @@ function renderCalendar() {
     );
     const dayReservations =
       reservationsByDate.get(dateKey) ?? [];
+    const dayTimeBlocks =
+      timeBlocksByDate.get(dateKey) ?? [];
+    const daySchedule = [
+      ...dayReservations.map((reservation) => ({
+        type: "reservation",
+        startAt: reservation.start_at,
+        value: reservation
+      })),
+      ...dayTimeBlocks.map((timeBlock) => ({
+        type: "time-block",
+        startAt: timeBlock.start_at,
+        value: timeBlock
+      }))
+    ].sort(
+      (first, second) =>
+        new Date(first.startAt) - new Date(second.startAt)
+    );
     const weekday = new Date(
       Date.UTC(visibleYear, visibleMonth - 1, day)
     ).getUTCDay();
@@ -1591,14 +1656,18 @@ function renderCalendar() {
     calendarCells.push(`
       <section
         class="${dayClasses.join(" ")}"
-        aria-label="${visibleYear}년 ${visibleMonth}월 ${day}일, 예약 ${dayReservations.length}건"
+        aria-label="${visibleYear}년 ${visibleMonth}월 ${day}일, 예약 ${dayReservations.length}건, 예약 제한 ${dayTimeBlocks.length}건"
       >
         <div class="admin-calendar-date">
           <span>${day}</span>
           ${dateKey === todayKey ? "<small>오늘</small>" : ""}
         </div>
         <div class="calendar-reservation-list">
-          ${dayReservations.map(renderReservation).join("")}
+          ${daySchedule.map((item) => (
+            item.type === "reservation"
+              ? renderReservation(item.value)
+              : renderTimeBlock(item.value)
+          )).join("")}
         </div>
       </section>
     `);
@@ -1610,24 +1679,36 @@ function renderCalendar() {
 async function loadReservations() {
   showMessage("예약 현황을 불러오는 중입니다.");
 
-  const { data, error } = await supabase
-    .from("reservations")
-    .select(`
-      *,
-      reservation_members(*),
-      usage_reports(*)
-    `)
-    .order("start_at", { ascending: true });
+  const [reservationResult, timeBlockResult] = await Promise.all([
+    supabase
+      .from("reservations")
+      .select(`
+        *,
+        reservation_members(*),
+        usage_reports(*)
+      `)
+      .order("start_at", { ascending: true }),
+    supabase.rpc("admin_list_reservation_time_blocks")
+  ]);
 
-  if (error) {
+  if (reservationResult.error) {
     showMessage(
-      `예약 현황을 불러오지 못했습니다: ${error.message}`,
+      `예약 현황을 불러오지 못했습니다: ${reservationResult.error.message}`,
       true
     );
     return;
   }
 
-  allReservations = data ?? [];
+  if (timeBlockResult.error) {
+    showMessage(
+      `예약 제한 시간을 불러오지 못했습니다: ${timeBlockResult.error.message}`,
+      true
+    );
+    return;
+  }
+
+  allReservations = reservationResult.data ?? [];
+  allTimeBlocks = timeBlockResult.data ?? [];
   renderCalendar();
   showMessage("");
 }
@@ -1642,8 +1723,11 @@ async function initialize() {
 
     const permission = await checkApproved(user.id);
 
-    if (permission.role !== "admin") {
-      alert("관리자만 접근할 수 있습니다.");
+    if (
+      permission.role !== "admin" ||
+      permission.is_approved !== true
+    ) {
+      alert("승인된 관리자만 접근할 수 있습니다.");
       window.location.href = "./reservation.html";
       return;
     }

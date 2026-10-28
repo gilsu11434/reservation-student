@@ -1986,6 +1986,11 @@ input[type="file"]::file-selector-button {
   background: var(--danger);
 }
 
+.admin-calendar-legend-block i {
+  border-radius: 3px;
+  background: #6d747c;
+}
+
 .admin-calendar-navigation {
   display: grid;
   grid-template-columns: 40px minmax(138px, auto) 40px;
@@ -2160,6 +2165,156 @@ input[type="file"]::file-selector-button {
   color: var(--brand-dark);
   font-size: 10px;
   font-weight: 800;
+}
+
+.calendar-time-block {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  padding: 8px 9px;
+  border: 1px solid #c9cdd2;
+  border-left: 3px solid #6d747c;
+  border-radius: 8px;
+  color: var(--text);
+  background: #eef0f2;
+}
+
+.calendar-time-block-title {
+  color: #4d545c;
+  font-size: 13px;
+}
+
+.calendar-time-block .calendar-reservation-time strong {
+  color: #4d545c;
+}
+
+.calendar-time-block-reason {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-time-block a {
+  width: max-content;
+  margin-top: 2px;
+  color: #4d545c;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.admin-time-block-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.admin-time-block-form-card,
+.admin-time-block-list-card {
+  padding: 24px;
+}
+
+.admin-time-block-form-card h2,
+.admin-time-block-list-card h2 {
+  margin-bottom: 8px;
+}
+
+.admin-time-block-form-card .muted,
+.admin-time-block-list-card .muted {
+  margin-bottom: 20px;
+}
+
+.admin-time-block-form {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-time-block-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-time-block-form button[type="submit"] {
+  width: 100%;
+}
+
+.admin-time-block-list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-time-block-list-header button {
+  min-height: 40px;
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.admin-time-block-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-time-block-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #6d747c;
+  border-radius: 12px;
+  background: #f7f8f9;
+}
+
+.admin-time-block-item strong,
+.admin-time-block-item span,
+.admin-time-block-item small {
+  display: block;
+}
+
+.admin-time-block-item strong {
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.admin-time-block-item span {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.admin-time-block-item small {
+  margin-top: 5px;
+  color: var(--text-faint);
+  line-height: 1.5;
+}
+
+.admin-time-block-delete {
+  border-color: #efb9b4;
+  color: var(--danger-dark);
+  background: #fff4f3;
+}
+
+.admin-time-block-delete:hover {
+  border-color: var(--danger);
+  color: #ffffff;
+  background: var(--danger);
+}
+
+.admin-time-block-empty {
+  margin: 0;
+  padding: 24px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  color: var(--text-soft);
+  background: var(--surface-soft);
+  text-align: center;
 }
 
 .calendar-approval-status {
@@ -2779,6 +2934,22 @@ input[type="file"]::file-selector-button {
 }
 
 @media (max-width: 700px) {
+  .admin-time-block-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-time-block-time-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-time-block-item {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-time-block-delete {
+    width: 100%;
+  }
+
   .container {
     width: min(100% - 28px, 1120px);
     padding: 30px 0 52px;
