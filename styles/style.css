@@ -683,6 +683,8 @@ input[type="file"]::file-selector-button {
 
 .calendar-day:disabled,
 .calendar-day.weekend,
+.calendar-day.holiday,
+.calendar-day.post-holiday,
 .calendar-day.outside-range {
   border-color: transparent;
   color: #a9acb1 !important;

@@ -146,6 +146,11 @@ as $$
 declare
   v_reservation_date date;
   v_holiday_name text;
+  v_today date;
+  v_today_holiday_name text;
+  v_today_is_closed boolean;
+  v_next_business_date date;
+  v_next_holiday_name text;
 begin
   v_reservation_date := (new.start_at at time zone 'Asia/Seoul')::date;
 
@@ -165,6 +170,45 @@ begin
   if v_holiday_name is not null then
     raise exception '% 공휴일에는 예약할 수 없습니다.', v_holiday_name
       using errcode = '23514';
+  end if;
+
+  -- 현재가 주말 또는 공휴일이면 연휴가 끝난 직후 첫 평일도 예약할 수 없습니다.
+  v_today := (now() at time zone 'Asia/Seoul')::date;
+
+  select holiday_name
+    into v_today_holiday_name
+  from public.get_reservation_holidays(v_today, v_today)
+  limit 1;
+
+  v_today_is_closed :=
+    extract(isodow from v_today) in (6, 7)
+    or v_today_holiday_name is not null;
+
+  if v_today_is_closed then
+    v_next_business_date := v_today + 1;
+
+    loop
+      select holiday_name
+        into v_next_holiday_name
+      from public.get_reservation_holidays(
+        v_next_business_date,
+        v_next_business_date
+      )
+      limit 1;
+
+      exit when
+        extract(isodow from v_next_business_date) between 1 and 5
+        and v_next_holiday_name is null;
+
+      v_next_business_date := v_next_business_date + 1;
+    end loop;
+
+    if v_reservation_date = v_next_business_date then
+      raise exception
+        '현재가 주말 또는 공휴일이므로 연휴 직후 첫 운영일인 %에는 예약할 수 없습니다.',
+        to_char(v_next_business_date, 'YYYY-MM-DD')
+        using errcode = '23514';
+    end if;
   end if;
 
   return new;
