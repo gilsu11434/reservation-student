@@ -146,8 +146,46 @@ as $$
 declare
   v_reservation_date date;
   v_holiday_name text;
+  v_today date;
+  v_today_is_holiday boolean;
+  v_post_holiday_date date;
+  v_next_date_is_holiday boolean;
 begin
   v_reservation_date := (new.start_at at time zone 'Asia/Seoul')::date;
+  v_today := (current_timestamp at time zone 'Asia/Seoul')::date;
+
+  select exists (
+    select 1
+    from public.get_reservation_holidays(v_today, v_today)
+  )
+  into v_today_is_holiday;
+
+  if extract(isodow from v_today) in (6, 7)
+    or v_today_is_holiday then
+    v_post_holiday_date := v_today + 1;
+
+    loop
+      select exists (
+        select 1
+        from public.get_reservation_holidays(
+          v_post_holiday_date,
+          v_post_holiday_date
+        )
+      )
+      into v_next_date_is_holiday;
+
+      exit when extract(isodow from v_post_holiday_date) not in (6, 7)
+        and not v_next_date_is_holiday;
+
+      v_post_holiday_date := v_post_holiday_date + 1;
+    end loop;
+
+    if v_reservation_date = v_post_holiday_date then
+      raise exception '현재가 주말 또는 공휴일이므로 연휴 직후 첫 운영일(%)은 예약할 수 없습니다.',
+        to_char(v_post_holiday_date, 'YYYY-MM-DD')
+        using errcode = '23514';
+    end if;
+  end if;
 
   if extract(isodow from v_reservation_date) in (6, 7) then
     raise exception '토요일과 일요일에는 예약할 수 없습니다.'
