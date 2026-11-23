@@ -8,7 +8,7 @@
     content="창의융합프로젝트실 이용 건의사항 게시판"
   >
   <title>건의사항 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20260806-suggestion-titles">
+  <link rel="stylesheet" href="./styles/style.css?v=20260809-suggestion-images">
 </head>
 <body>
   <header class="app-header">
@@ -37,7 +37,7 @@
         <p>
           창의융합프로젝트실 이용 중 불편했던 점이나 개선 아이디어를
           자유롭게 남겨주세요. 제목과 가려진 작성자 이름은 공개되며,
-          본문은 관리자만 열람할 수 있습니다.
+          본문과 첨부 사진은 관리자와 작성자 본인만 열람할 수 있습니다.
         </p>
       </div>
       <a class="button" href="#suggestion-form-card">건의 작성</a>
@@ -82,8 +82,26 @@
               placeholder="불편했던 점이나 개선 아이디어를 자세히 작성해 주세요."
               required
             ></textarea>
-            <span class="field-help">최대 2,000자 · 본문은 관리자만 확인하며 이름은 가운데가 *로 표시됩니다.</span>
+            <span class="field-help">최대 2,000자 · 본문은 관리자와 작성자만 확인하며 이름은 가운데가 *로 표시됩니다.</span>
           </label>
+
+          <label class="field">
+            사진 첨부 <span class="optional">(선택)</span>
+            <input
+              id="suggestion-images"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+            >
+            <span class="field-help">JPG, PNG, WEBP · 최대 3장 · 장당 5MB 이하 · 관리자와 작성자만 확인 가능</span>
+          </label>
+
+          <div
+            id="suggestion-image-preview"
+            class="suggestion-image-preview"
+            aria-label="첨부 사진 미리보기"
+            hidden
+          ></div>
 
           <div class="form-actions">
             <button id="suggestion-submit-button" type="submit">
@@ -122,6 +140,6 @@
     창의융합프로젝트실 · 207관 605-1호
   </footer>
 
-  <script type="module" src="./scripts/suggestions.js?v=20260806-suggestion-titles"></script>
+  <script type="module" src="./scripts/suggestions.js?v=20260809-suggestion-images"></script>
 </body>
 </html>

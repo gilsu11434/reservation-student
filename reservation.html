@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 온라인 예약 신청">
   <title>호실 예약 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20261123-post-holiday-block">
+  <link rel="stylesheet" href="./styles/style.css?v=20261008-equipment-agreement">
 </head>
 <body>
   <header class="app-header">
@@ -48,7 +48,7 @@
           <span class="icon-box" aria-hidden="true">✓</span>
         </div>
 
-        <form id="reservation-form">
+        <form id="reservation-form" novalidate>
           <div class="form-grid">
             <label class="field">
               예약자 이름
@@ -73,6 +73,22 @@
             <label class="field">
               학번
               <input id="student-id" inputmode="numeric" required>
+            </label>
+
+            <label class="field field-full">
+              종합설계 지도교수님
+              <span class="professor-name-input">
+                <input
+                  id="graduation-professor"
+                  type="text"
+                  maxlength="30"
+                  size="3"
+                  autocomplete="off"
+                  aria-label="종합설계 지도교수님 이름"
+                  required
+                >
+                <span class="professor-name-suffix" aria-hidden="true">교수님</span>
+              </span>
             </label>
 
             <fieldset class="field field-full headcount-fieldset">
@@ -119,12 +135,12 @@
 
             <label class="field">
               사용할 장비
-              <input id="equipment" placeholder="인두기, 컴퓨터 등">
+              <input id="equipment" placeholder="인두기, 컴퓨터, 없음 등" aria-required="true">
             </label>
 
             <label class="field field-full">
               사용 목적
-              <textarea id="purpose" placeholder="프로젝트와 사용 목적을 작성해 주세요." required></textarea>
+              <textarea id="purpose" placeholder="프로젝트와 사용 목적을 작성해 주세요." aria-required="true"></textarea>
             </label>
 
             <div class="field reservation-calendar-field">
@@ -171,7 +187,7 @@
               </div>
               <input id="reservation-date" type="hidden" value="">
               <span class="field-help">
-                토요일과 일요일은 선택할 수 없습니다.
+                토요일·일요일과 공휴일은 선택할 수 없습니다.
               </span>
             </div>
 
@@ -239,6 +255,38 @@
               <input id="rules-agreed" type="checkbox" required>
               <span>이용수칙과 파손·분실 책임 규정을 확인하고 동의합니다.</span>
             </label>
+
+            <label class="checkbox-label checkbox-label-danger field-full">
+              <input id="equipment-restriction-agreed" type="checkbox" required>
+              <span>
+                창의융합실 이용 시 <strong>실내에 비치된 장비만 사용</strong>해 주시기 바랍니다.
+                외부 실험실의 장비를 임의로 반입하여 사용하는 경우,
+                <strong>창의융합실 이용이 제한될 수 있습니다.</strong>
+              </span>
+            </label>
+
+            <section
+              class="reservation-rules-notice field-full"
+              aria-labelledby="reservation-rules-title"
+            >
+              <div class="reservation-rules-heading">
+                <span class="reservation-rules-icon" aria-hidden="true">!</span>
+                <div>
+                  <h3 id="reservation-rules-title">이용수칙 안내</h3>
+                  <p>예약 신청 전 모든 참여자가 아래 내용을 확인해 주세요.</p>
+                </div>
+              </div>
+
+              <ul class="reservation-rules-list">
+                <li>예약은 평일 10:00부터 18:00까지 정각 단위로 이용할 수 있습니다.</li>
+                <li>예약은 내일부터 14일 이내만 가능하며 토요일·일요일과 공휴일은 이용할 수 없습니다.</li>
+                <li>모든 참여자는 가입된 이메일을 입력해야 하며, 참여자별 하루 최대 2시간·일주일 최대 4시간까지 이용할 수 있습니다.</li>
+                <li>이용 전 참여자의 안전교육 수료증을 제출하고, 이용 후에는 이용확인서를 제출해 주세요.</li>
+                <li>사용한 장비의 전원을 종료하고 주변을 정리한 후 퇴실해 주세요.</li>
+                <li>시설물과 장비를 허가 없이 이동할 수 없으며 음식물 반입은 금지됩니다.</li>
+                <li>시설물의 파손이나 분실을 발견하면 즉시 관리자에게 알려야 하며, 이용 중 발생한 파손·분실은 이용자에게 책임이 있을 수 있습니다.</li>
+              </ul>
+            </section>
           </div>
 
           <div class="form-actions">
@@ -251,6 +299,6 @@
     </div>
   </main>
 
-  <script type="module" src="./scripts/reservation.js?v=20261123-post-holiday-block"></script>
+  <script type="module" src="./scripts/reservation.js?v=20261008-public-holidays"></script>
 </body>
 </html>

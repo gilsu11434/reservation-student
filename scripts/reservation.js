@@ -8,6 +8,12 @@ let currentUser = null;
 let currentTeamId = null;
 let currentProfile = null;
 
+const reservationForm = document.getElementById("reservation-form");
+const requesterNameInput = document.getElementById("requester-name");
+const requesterEmailInput = document.getElementById("requester-email");
+const requesterPhoneInput = document.getElementById("requester-phone");
+const departmentInput = document.getElementById("department");
+const studentIdInput = document.getElementById("student-id");
 const headcountInput = document.getElementById("headcount");
 const headcountButtons = document.querySelectorAll("[data-headcount]");
 const participantsSection = document.getElementById("participants-section");
@@ -30,6 +36,18 @@ const selectedTimeSummary = document.getElementById(
   "selected-time-summary"
 );
 const timeSlotMessage = document.getElementById("time-slot-message");
+const graduationProfessorInput = document.getElementById(
+  "graduation-professor"
+);
+const equipmentInput = document.getElementById("equipment");
+const purposeInput = document.getElementById("purpose");
+const rulesAgreedInput = document.getElementById("rules-agreed");
+const equipmentRestrictionAgreedInput = document.getElementById(
+  "equipment-restriction-agreed"
+);
+const reservationMessage = document.getElementById(
+  "reservation-message"
+);
 
 let bookedSlots = [];
 let bookedSlotsLoaded = false;
@@ -40,7 +58,9 @@ let calendarMinimumDate = null;
 let calendarMaximumDate = null;
 let calendarViewDate = null;
 let reservationHolidays = new Map();
-let postHolidayBlockedDate = null;
+let reservationHolidaysLoaded = false;
+let professorNameComposing = false;
+let activeReservationErrorInput = null;
 
 document
   .getElementById("logout-button")
@@ -65,6 +85,95 @@ document
 document
   .getElementById("requester-email")
   .addEventListener("input", updatePrimaryParticipant);
+
+graduationProfessorInput.addEventListener("compositionstart", () => {
+  professorNameComposing = true;
+});
+
+graduationProfessorInput.addEventListener("compositionend", () => {
+  professorNameComposing = false;
+  graduationProfessorInput.value = sanitizeProfessorName(
+    graduationProfessorInput.value
+  );
+});
+
+graduationProfessorInput.addEventListener("input", () => {
+  if (!professorNameComposing) {
+    graduationProfessorInput.value = sanitizeProfessorName(
+      graduationProfessorInput.value
+    );
+  }
+});
+
+graduationProfessorInput.addEventListener("blur", () => {
+  graduationProfessorInput.value = normalizeProfessorName(
+    graduationProfessorInput.value
+  );
+});
+
+function clearEditedFieldError(event) {
+  const input = event.target;
+
+  input.removeAttribute?.("aria-invalid");
+
+  if (activeReservationErrorInput === input) {
+    activeReservationErrorInput = null;
+    reservationMessage.textContent = "";
+    reservationMessage.classList.remove("error");
+  }
+}
+
+reservationForm.addEventListener("input", clearEditedFieldError);
+reservationForm.addEventListener("change", clearEditedFieldError);
+
+function sanitizeProfessorName(value) {
+  return String(value ?? "")
+    .replace(/\s*교수님?\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .slice(0, 30);
+}
+
+function normalizeProfessorName(value) {
+  return sanitizeProfessorName(value).trim();
+}
+
+function isValidProfessorName(value) {
+  const letters = value.match(/[가-힣a-zA-Z]/g) ?? [];
+
+  return (
+    letters.length >= 2 &&
+    Array.from(value).length <= 30 &&
+    /^[가-힣a-zA-Z·ㆍ ]+$/.test(value)
+  );
+}
+
+function isValidDescriptiveText(value) {
+  const completeLetters = value.match(/[가-힣a-zA-Z]/g) ?? [];
+
+  return completeLetters.length >= 2;
+}
+
+function showReservationFieldError(input, text) {
+  if (
+    activeReservationErrorInput &&
+    activeReservationErrorInput !== input
+  ) {
+    activeReservationErrorInput.removeAttribute("aria-invalid");
+  }
+
+  activeReservationErrorInput = input;
+  reservationMessage.textContent = text;
+  reservationMessage.classList.remove("success");
+  reservationMessage.classList.add("error");
+  input.setAttribute("aria-invalid", "true");
+  input.focus();
+}
+
+function createReservationValidationError(text, input) {
+  const error = new Error(text);
+  error.input = input;
+  return error;
+}
 
 calendarToggle.addEventListener("click", () => {
   const opening = calendarPopover.hidden;
@@ -127,8 +236,17 @@ async function initialize() {
   }
 
   setDateLimits();
-  await loadReservationHolidays();
   updateTimeSlotAvailability();
+  const holidaysReady = await loadReservationHolidays();
+
+  if (!holidaysReady) {
+    reservationMessage.textContent =
+      "공휴일 정보를 불러오지 못했습니다. 페이지를 새로고침해 주세요.";
+    reservationMessage.classList.remove("success");
+    reservationMessage.classList.add("error");
+    return;
+  }
+
   await ensureReservationTeam(profile);
   await loadBookedSlots();
 }
@@ -313,7 +431,10 @@ function collectParticipants() {
   const headcount = Number(headcountInput.value);
 
   if (!headcount) {
-    throw new Error("사용 인원을 선택해 주세요.");
+    throw createReservationValidationError(
+      "사용 인원을 선택해 주세요.",
+      headcountButtons[0]
+    );
   }
 
   const requesterEmail = normalizeEmail(
@@ -321,8 +442,9 @@ function collectParticipants() {
   );
 
   if (!isValidEmail(requesterEmail)) {
-    throw new Error(
-      "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요."
+    throw createReservationValidationError(
+      "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요.",
+      requesterEmailInput
     );
   }
 
@@ -343,22 +465,35 @@ function collectParticipants() {
         return;
       }
 
-      const memberName = card.querySelector(".participant-name").value.trim();
-      const studentId = card
-        .querySelector(".participant-student-id")
-        .value.trim();
+      const memberNameInput = card.querySelector(".participant-name");
+      const participantStudentIdInput = card.querySelector(
+        ".participant-student-id"
+      );
+      const memberEmailInput = card.querySelector(".participant-email");
+      const memberName = memberNameInput.value.trim();
+      const studentId = participantStudentIdInput.value.trim();
       const memberEmail = normalizeEmail(
-        card.querySelector(".participant-email").value
+        memberEmailInput.value
       );
 
       if (!memberName || !studentId || !memberEmail) {
-        throw new Error(
-          `${index + 1}번 참여자의 이름, 학번, 이메일을 입력해 주세요.`
+        const missingInput = !memberName
+          ? memberNameInput
+          : !studentId
+            ? participantStudentIdInput
+            : memberEmailInput;
+
+        throw createReservationValidationError(
+          `${index + 1}번 참여자의 이름, 학번, 이메일을 입력해 주세요.`,
+          missingInput
         );
       }
 
       if (!isValidEmail(memberEmail)) {
-        throw new Error(`${index + 1}번 참여자의 이메일 형식이 올바르지 않습니다.`);
+        throw createReservationValidationError(
+          `${index + 1}번 참여자의 이메일 형식이 올바르지 않습니다.`,
+          memberEmailInput
+        );
       }
 
       participants.push({
@@ -371,7 +506,11 @@ function collectParticipants() {
   const studentIds = participants.map((participant) => participant.student_id);
 
   if (new Set(studentIds).size !== studentIds.length) {
-    throw new Error("같은 학번을 두 번 입력할 수 없습니다.");
+    throw createReservationValidationError(
+      "같은 학번을 두 번 입력할 수 없습니다.",
+      participantFields.querySelector(".participant-student-id") ??
+        studentIdInput
+    );
   }
 
   const memberEmails = participants.map(
@@ -379,7 +518,11 @@ function collectParticipants() {
   );
 
   if (new Set(memberEmails).size !== memberEmails.length) {
-    throw new Error("같은 이메일을 두 번 입력할 수 없습니다.");
+    throw createReservationValidationError(
+      "같은 이메일을 두 번 입력할 수 없습니다.",
+      participantFields.querySelector(".participant-email") ??
+        requesterEmailInput
+    );
   }
 
   return participants;
@@ -453,95 +596,9 @@ function getDateWeekday(dateValue) {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
-function addDaysToDateValue(dateValue, days) {
-  const [year, month, day] = dateValue.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function getSeoulDateValue(value = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Seoul",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(value);
-  const values = Object.fromEntries(
-    parts.map((part) => [part.type, part.value])
-  );
-
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function isWeekendDate(dateValue) {
-  const weekday = getDateWeekday(dateValue);
-  return weekday === 0 || weekday === 6;
-}
-
-function isClosedDate(dateValue) {
-  return (
-    isWeekendDate(dateValue) ||
-    reservationHolidays.has(dateValue)
-  );
-}
-
-function calculatePostHolidayBlockedDate() {
-  const today = getSeoulDateValue();
-
-  if (!isClosedDate(today)) {
-    return null;
-  }
-
-  let candidate = addDaysToDateValue(today, 1);
-
-  while (isClosedDate(candidate)) {
-    candidate = addDaysToDateValue(candidate, 1);
-  }
-
-  return candidate;
-}
-
-function getDateRestriction(dateValue) {
-  if (isWeekendDate(dateValue)) {
-    return {
-      type: "weekend",
-      label: "주말 이용 불가"
-    };
-  }
-
-  const holidayName = reservationHolidays.get(dateValue);
-
-  if (holidayName) {
-    return {
-      type: "holiday",
-      label: `${holidayName} 공휴일 이용 불가`
-    };
-  }
-
-  if (dateValue === postHolidayBlockedDate) {
-    return {
-      type: "post-holiday",
-      label: "연휴 직후 첫 운영일 예약 불가"
-    };
-  }
-
-  return null;
-}
-
 function getTimeSlotStatus(dateValue, hour) {
   if (!dateValue) {
     return { available: false, label: "날짜 선택 필요" };
-  }
-
-  const dateRestriction = getDateRestriction(dateValue);
-
-  if (dateRestriction) {
-    return {
-      available: false,
-      label: dateRestriction.label
-    };
   }
 
   if (!bookedSlotsLoaded) {
@@ -549,6 +606,12 @@ function getTimeSlotStatus(dateValue, hour) {
       available: false,
       label: bookedSlotsLoadFailed ? "예약 확인 실패" : "예약 확인 중"
     };
+  }
+
+  const weekday = getDateWeekday(dateValue);
+
+  if (weekday === 0 || weekday === 6) {
+    return { available: false, label: "주말 이용 불가" };
   }
 
   const slotStart = new Date(
@@ -864,12 +927,19 @@ function moveCalendarMonth(direction) {
 
 function selectReservationDate(dateValue) {
   const selectedDate = parseLocalDateValue(dateValue);
+  const weekday = selectedDate.getDay();
   const outsideRange =
     selectedDate < calendarMinimumDate ||
     selectedDate > calendarMaximumDate;
-  const dateRestriction = getDateRestriction(dateValue);
+  const holiday = reservationHolidays.has(dateValue);
 
-  if (outsideRange || dateRestriction) {
+  if (
+    outsideRange ||
+    weekday === 0 ||
+    weekday === 6 ||
+    !reservationHolidaysLoaded ||
+    holiday
+  ) {
     return;
   }
 
@@ -913,13 +983,14 @@ function renderReservationCalendar() {
   for (let day = 1; day <= daysInMonth; day += 1) {
     const date = new Date(year, month, day, 12);
     const dateValue = toLocalDateValue(date);
-    const dateRestriction = getDateRestriction(dateValue);
-    const weekend = dateRestriction?.type === "weekend";
-    const holiday = dateRestriction?.type === "holiday";
-    const postHoliday = dateRestriction?.type === "post-holiday";
+    const weekday = date.getDay();
+    const weekend = weekday === 0 || weekday === 6;
     const outsideRange =
       date < calendarMinimumDate || date > calendarMaximumDate;
-    const disabled = Boolean(dateRestriction) || outsideRange;
+    const holidayName = reservationHolidays.get(dateValue) ?? "";
+    const holiday = Boolean(holidayName);
+    const disabled =
+      weekend || outsideRange || holiday || !reservationHolidaysLoaded;
     const button = document.createElement("button");
 
     button.type = "button";
@@ -931,27 +1002,19 @@ function renderReservationCalendar() {
     button.setAttribute("aria-disabled", String(disabled));
     button.setAttribute(
       "aria-label",
-      disabled
-        ? `${dateValue} ${
-          outsideRange
-            ? "예약 가능 범위 밖"
-            : dateRestriction.label
-        }`
-        : `${dateValue} 예약 날짜 선택`
+      holiday
+        ? `${dateValue} ${holidayName}, 공휴일 선택 불가`
+        : disabled
+          ? `${dateValue} 선택 불가`
+          : `${dateValue} 예약 날짜 선택`
     );
+
+    if (holiday) {
+      button.title = `${holidayName} (공휴일)`;
+    }
 
     if (weekend) {
       button.classList.add("weekend");
-    }
-
-    if (holiday) {
-      button.classList.add("holiday");
-      button.title = dateRestriction.label;
-    }
-
-    if (postHoliday) {
-      button.classList.add("post-holiday");
-      button.title = dateRestriction.label;
     }
 
     if (outsideRange) {
@@ -1011,26 +1074,25 @@ function setDateLimits() {
 }
 
 async function loadReservationHolidays() {
-  const today = getSeoulDateValue();
-  const rangeEnd = addDaysToDateValue(
-    toLocalDateValue(calendarMaximumDate),
-    14
-  );
+  if (!calendarMinimumDate || !calendarMaximumDate) {
+    return false;
+  }
+
+  reservationHolidaysLoaded = false;
+  renderReservationCalendar();
+
   const { data, error } = await supabase.rpc(
     "get_reservation_holidays",
     {
-      p_from: today,
-      p_to: rangeEnd
+      p_from: toLocalDateValue(calendarMinimumDate),
+      p_to: toLocalDateValue(calendarMaximumDate)
     }
   );
 
   if (error) {
     reservationHolidays = new Map();
-    postHolidayBlockedDate = isWeekendDate(today)
-      ? calculatePostHolidayBlockedDate()
-      : null;
     renderReservationCalendar();
-    return;
+    return false;
   }
 
   reservationHolidays = new Map(
@@ -1039,8 +1101,18 @@ async function loadReservationHolidays() {
       holiday.holiday_name
     ])
   );
-  postHolidayBlockedDate = calculatePostHolidayBlockedDate();
+  reservationHolidaysLoaded = true;
+
+  if (reservationHolidays.has(reservationDateInput.value)) {
+    reservationDateInput.value = "";
+    calendarValue.textContent = "연도-월-일";
+    calendarToggle.classList.remove("has-value");
+    resetSelectedTimeSlots();
+    updateTimeSlotAvailability();
+  }
+
   renderReservationCalendar();
+  return true;
 }
 
 async function loadBookedSlots() {
@@ -1050,7 +1122,7 @@ async function loadBookedSlots() {
   to.setDate(to.getDate() + 15);
 
   const { data, error } = await supabase.rpc(
-    "get_booked_slots",
+    "get_reservation_blocked_slots",
     {
       p_from: from.toISOString(),
       p_to: to.toISOString()
@@ -1107,18 +1179,87 @@ async function loadBookedSlots() {
     .join("");
 }
 
-document
-  .getElementById("reservation-form")
-  .addEventListener("submit", async (event) => {
+reservationForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const message =
-      document.getElementById("reservation-message");
+    const message = reservationMessage;
 
-    if (!currentTeamId) {
-      message.textContent =
-        "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
-      message.classList.add("error");
+    if (activeReservationErrorInput) {
+      activeReservationErrorInput.removeAttribute("aria-invalid");
+      activeReservationErrorInput = null;
+    }
+
+    const requesterName = requesterNameInput.value.trim();
+    const requesterEmail = normalizeEmail(requesterEmailInput.value);
+    const requesterPhone = requesterPhoneInput.value.trim();
+    const department = departmentInput.value.trim();
+    const studentId = studentIdInput.value.trim();
+    const graduationProfessor = normalizeProfessorName(
+      graduationProfessorInput.value
+    );
+
+    const equipment = equipmentInput.value.trim();
+    const purpose = purposeInput.value.trim();
+
+    const date = reservationDateInput.value;
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+
+    graduationProfessorInput.value = graduationProfessor;
+
+    if (!requesterName) {
+      showReservationFieldError(
+        requesterNameInput,
+        "예약자 이름을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidEmail(requesterEmail)) {
+      showReservationFieldError(
+        requesterEmailInput,
+        "예약자 이메일을 확인할 수 없습니다. 회원정보의 이메일을 확인해 주세요."
+      );
+      return;
+    }
+
+    if (!requesterPhone) {
+      showReservationFieldError(
+        requesterPhoneInput,
+        "예약자 전화번호를 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!department) {
+      showReservationFieldError(
+        departmentInput,
+        "학과를 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!studentId) {
+      showReservationFieldError(
+        studentIdInput,
+        "학번을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!graduationProfessor) {
+      showReservationFieldError(
+        graduationProfessorInput,
+        "종합설계 지도교수님 이름을 입력해 주세요."
+      );
+      return;
+    }
+
+    if (!isValidProfessorName(graduationProfessor)) {
+      showReservationFieldError(
+        graduationProfessorInput,
+        "종합설계 지도교수님 이름은 완성형 한글 또는 영문으로 2글자 이상 입력해 주세요. (예: 홍길동)"
+      );
       return;
     }
 
@@ -1127,22 +1268,126 @@ document
     try {
       participants = collectParticipants();
     } catch (error) {
-      message.textContent = error.message;
-      message.classList.add("error");
+      showReservationFieldError(
+        error.input ?? headcountButtons[0],
+        error.message
+      );
       return;
     }
 
-    const date =
-      document.getElementById("reservation-date").value;
+    if (!equipment) {
+      showReservationFieldError(
+        equipmentInput,
+        "사용할 장비를 입력해 주세요. 사용 장비가 없다면 ‘없음’이라고 입력해 주세요."
+      );
+      return;
+    }
 
-    const startTime =
-      document.getElementById("start-time").value;
+    if (!isValidDescriptiveText(equipment)) {
+      showReservationFieldError(
+        equipmentInput,
+        "사용할 장비에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 컴퓨터, 인두기)"
+      );
+      return;
+    }
 
-    const endTime =
-      document.getElementById("end-time").value;
+    if (!purpose) {
+      showReservationFieldError(
+        purposeInput,
+        "사용 목적을 입력해 주세요."
+      );
+      return;
+    }
 
-    if (!date || !startTime || !endTime) {
-      message.textContent = "예약 날짜와 이용 시간을 선택해 주세요.";
+    if (!isValidDescriptiveText(purpose)) {
+      showReservationFieldError(
+        purposeInput,
+        "사용 목적에는 완성형 한글 또는 영문을 2글자 이상 입력해 주세요. (예: 종합설계 작품 제작)"
+      );
+      return;
+    }
+
+    if (!date) {
+      showReservationFieldError(
+        calendarToggle,
+        "예약 날짜를 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!reservationHolidaysLoaded) {
+      showReservationFieldError(
+        calendarToggle,
+        "공휴일 정보를 확인하지 못했습니다. 페이지를 새로고침해 주세요."
+      );
+      return;
+    }
+
+    const selectedDate = parseLocalDateValue(date);
+    const selectedWeekday = selectedDate.getDay();
+    const selectedHolidayName = reservationHolidays.get(date);
+
+    if (selectedWeekday === 0 || selectedWeekday === 6) {
+      showReservationFieldError(
+        calendarToggle,
+        "토요일과 일요일에는 예약할 수 없습니다."
+      );
+      return;
+    }
+
+    if (selectedHolidayName) {
+      showReservationFieldError(
+        calendarToggle,
+        `${selectedHolidayName} 공휴일에는 예약할 수 없습니다.`
+      );
+      return;
+    }
+
+    if (!startTime) {
+      const firstAvailableStartButton = Array.from(
+        startTimeButtons
+      ).find((button) => !button.disabled);
+
+      showReservationFieldError(
+        firstAvailableStartButton ?? calendarToggle,
+        firstAvailableStartButton
+          ? "시작 시각을 선택해 주세요."
+          : "선택한 날짜에 예약 가능한 시작 시각이 없습니다. 다른 날짜를 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!endTime) {
+      const firstAvailableEndButton = Array.from(
+        endTimeButtons
+      ).find((button) => !button.disabled);
+
+      showReservationFieldError(
+        firstAvailableEndButton ?? calendarToggle,
+        "종료 시각을 선택해 주세요."
+      );
+      return;
+    }
+
+    if (!rulesAgreedInput.checked) {
+      showReservationFieldError(
+        rulesAgreedInput,
+        "이용수칙과 파손·분실 책임 규정을 확인하고 동의해 주세요."
+      );
+      return;
+    }
+
+    if (!equipmentRestrictionAgreedInput.checked) {
+      showReservationFieldError(
+        equipmentRestrictionAgreedInput,
+        "실내에 비치된 장비만 사용한다는 안내를 확인하고 동의해 주세요."
+      );
+      return;
+    }
+
+    if (!currentTeamId) {
+      message.textContent =
+        "예약 정보를 준비하지 못했습니다. 페이지를 새로고침해 주세요.";
       message.classList.remove("success");
       message.classList.add("error");
       return;
@@ -1294,20 +1539,16 @@ document
 
         p_headcount: participants.length,
 
-        p_purpose:
-          document.getElementById("purpose")
-            .value.trim(),
+        p_purpose: purpose,
 
-        p_equipment:
-          document.getElementById("equipment")
-            .value.trim(),
+        p_equipment: equipment,
 
         p_start_at: startAt,
         p_end_at: endAt,
 
         p_rules_agreed:
-          document.getElementById("rules-agreed")
-            .checked
+          rulesAgreedInput.checked &&
+          equipmentRestrictionAgreedInput.checked
       }
     );
 
@@ -1325,7 +1566,26 @@ document
 
     if (!reservationId) {
       message.textContent =
-        "예약은 생성됐지만 예약번호를 확인하지 못했습니다. 관리자에게 문의해 주세요.";
+        "예약은 생성됐지만 처리 정보를 확인하지 못했습니다. 관리자에게 문의해 주세요.";
+      message.classList.add("error");
+      return;
+    }
+
+    const { error: professorError } = await supabase.rpc(
+      "set_my_reservation_professor",
+      {
+        p_reservation_id: String(reservationId),
+        p_graduation_professor: graduationProfessor
+      }
+    );
+
+    if (professorError) {
+      await supabase.rpc("cancel_my_reservation", {
+        p_reservation_id: reservationId
+      });
+
+      message.textContent =
+        `종합설계 지도교수님 저장 오류: ${professorError.message}`;
       message.classList.add("error");
       return;
     }
@@ -1352,7 +1612,7 @@ document
     }
 
     message.textContent =
-      `예약이 완료되었습니다. 예약번호: ${reservationId}`;
+      "예약 신청이 접수되었습니다. 관리자 승인 대기 중입니다.";
     message.classList.remove("error");
     message.classList.add("success");
 
@@ -1367,6 +1627,7 @@ document
 
     setDateLimits();
 
+    await loadReservationHolidays();
     await loadBookedSlots();
   });
 
