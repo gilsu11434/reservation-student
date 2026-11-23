@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="창의융합프로젝트실 관리자 예약 제한 시간 설정">
+  <title>예약 제한 설정 - 창의융합프로젝트실 관리자</title>
+  <link rel="stylesheet" href="./styles/style.css?v=20261028-admin-time-blocks">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./admin.html" aria-label="관리자 홈">
+      <span class="brand-mark" aria-hidden="true">융</span>
+      <span class="brand-copy">
+        <strong>창의융합프로젝트실 관리자</strong>
+        <small>207관 605-1호</small>
+      </span>
+    </a>
+
+    <nav class="app-nav" aria-label="관리자 메뉴">
+      <a href="./admin.html">예약 현황</a>
+      <a href="./admin-time-blocks.html" aria-current="page">예약 제한 설정</a>
+      <a class="nav-suggestion" href="./suggestions.html">건의사항</a>
+      <a href="./index.html">이용 안내</a>
+      <button id="logout-button" type="button">로그아웃</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">Time restriction</p>
+        <h1>예약 제한 시간 관리</h1>
+        <p>관리자가 지정한 시간에는 사용자가 예약할 수 없습니다.</p>
+      </div>
+    </div>
+
+    <p id="time-block-message" class="form-message" role="status"></p>
+
+    <div class="admin-time-block-layout">
+      <section class="card admin-time-block-form-card">
+        <p class="eyebrow">Add restriction</p>
+        <h2>제한 시간 등록</h2>
+        <p class="muted">운영시간인 10:00부터 18:00까지 정각 단위로 설정할 수 있습니다.</p>
+
+        <form id="time-block-form" class="admin-time-block-form">
+          <label class="field">
+            제한 날짜
+            <input id="time-block-date" type="date" required>
+          </label>
+
+          <div class="admin-time-block-time-grid">
+            <label class="field">
+              시작 시각
+              <select id="time-block-start" required>
+                <option value="10">10:00</option>
+                <option value="11">11:00</option>
+                <option value="12">12:00</option>
+                <option value="13">13:00</option>
+                <option value="14">14:00</option>
+                <option value="15">15:00</option>
+                <option value="16">16:00</option>
+                <option value="17">17:00</option>
+              </select>
+            </label>
+
+            <label class="field">
+              종료 시각
+              <select id="time-block-end" required>
+                <option value="11">11:00</option>
+                <option value="12">12:00</option>
+                <option value="13">13:00</option>
+                <option value="14">14:00</option>
+                <option value="15">15:00</option>
+                <option value="16">16:00</option>
+                <option value="17">17:00</option>
+                <option value="18">18:00</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            제한 사유
+            <input
+              id="time-block-reason"
+              maxlength="100"
+              placeholder="예: 장비 점검, 행사 준비"
+            >
+          </label>
+
+          <button type="submit">예약 제한 등록</button>
+        </form>
+      </section>
+
+      <section class="card admin-time-block-list-card">
+        <div class="admin-time-block-list-header">
+          <div>
+            <p class="eyebrow">Upcoming restrictions</p>
+            <h2>등록된 제한 시간</h2>
+            <p class="muted">현재 시각 이후의 예약 제한만 표시됩니다.</p>
+          </div>
+          <button id="time-block-refresh" type="button">새로고침</button>
+        </div>
+
+        <div id="time-block-list" class="admin-time-block-list" aria-live="polite">
+          <p class="admin-time-block-empty">제한 시간을 불러오는 중입니다.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module" src="./scripts/admin-time-blocks.js?v=20261028-admin-time-blocks"></script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>창의융합프로젝트실 이용확인서 양식</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: #111827;
+      background: #eef0f2;
+      font-family: "Noto Sans KR", "Malgun Gothic", sans-serif;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      padding: 18px;
+    }
+
+    button {
+      min-height: 42px;
+      padding: 9px 18px;
+      border: 0;
+      border-radius: 8px;
+      color: #ffffff;
+      background: #10a37f;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto 30px;
+      padding: 16mm;
+      background: #ffffff;
+      box-shadow: 0 8px 30px rgba(16, 24, 40, 0.12);
+    }
+
+    h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 25px;
+      letter-spacing: 0.08em;
+    }
+
+    .subtitle {
+      margin: 5px 0 20px;
+      color: #4b5563;
+      text-align: center;
+    }
+
+    h2 {
+      margin: 18px 0 7px;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      height: 35px;
+      padding: 6px 8px;
+      border: 1px solid #5f6368;
+      vertical-align: middle;
+    }
+
+    th {
+      width: 15%;
+      background: #f2f3f5;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .participant-table th,
+    .participant-table td {
+      height: 29px;
+      padding: 4px 6px;
+      text-align: center;
+    }
+
+    .participant-table th:first-child {
+      width: 7%;
+    }
+
+    .participant-table th:nth-child(2) {
+      width: 18%;
+    }
+
+    .participant-table th:nth-child(3) {
+      width: 20%;
+    }
+
+    .participant-table th:nth-child(4) {
+      width: 37%;
+    }
+
+    .participant-table th:nth-child(5) {
+      width: 18%;
+    }
+
+    .check-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 16px;
+      padding: 12px;
+      border: 1px solid #5f6368;
+    }
+
+    .check-list label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .check-list input {
+      width: 15px;
+      height: 15px;
+    }
+
+    .confirmation {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .confirmation-date {
+      margin-top: 22px;
+    }
+
+    .signature-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 28px;
+      margin-top: 18px;
+      font-size: 14px;
+    }
+
+    .note {
+      margin: 18px 0 0;
+      padding: 10px 12px;
+      border-left: 4px solid #10a37f;
+      color: #4b5563;
+      background: #edf8f5;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .toolbar {
+        display: none;
+      }
+
+      .sheet {
+        margin: 0;
+        box-shadow: none;
+      }
+    }
+
+    @media (max-width: 800px) {
+      .sheet {
+        width: 100%;
+        min-height: 0;
+        padding: 20px;
+      }
+
+      .check-list {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" onclick="window.print()">인쇄 · PDF로 저장</button>
+  </div>
+
+  <main class="sheet">
+    <h1>창의융합프로젝트실 이용확인서</h1>
+    <p class="subtitle">207관 605-1호</p>
+
+    <h2>1. 예약 및 이용 정보</h2>
+    <table>
+      <tbody>
+        <tr>
+          <th>이용일자</th>
+          <td><input aria-label="이용일자" placeholder="20    년    월    일"></td>
+          <th>이용시간</th>
+          <td><input aria-label="이용시간" placeholder="00:00 ~ 00:00"></td>
+        </tr>
+        <tr>
+          <th>예약자 이름</th>
+          <td><input aria-label="예약자 이름"></td>
+          <th>사용 인원</th>
+          <td><input aria-label="사용 인원" placeholder="총    명"></td>
+        </tr>
+        <tr>
+          <th>학과</th>
+          <td><input aria-label="학과"></td>
+          <th>학번</th>
+          <td><input aria-label="학번"></td>
+        </tr>
+        <tr>
+          <th>연락처</th>
+          <td><input aria-label="연락처"></td>
+          <th>이메일</th>
+          <td><input type="email" aria-label="이메일"></td>
+        </tr>
+        <tr>
+          <th>사용 장비</th>
+          <td colspan="3"><input aria-label="사용 장비"></td>
+        </tr>
+        <tr>
+          <th>사용 목적</th>
+          <td colspan="3"><textarea aria-label="사용 목적"></textarea></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. 참여자 명단</h2>
+    <table class="participant-table">
+      <thead>
+        <tr>
+          <th>번호</th>
+          <th>이름</th>
+          <th>학번</th>
+          <th>이메일</th>
+          <th>서명</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td><input aria-label="참여자 1 이름"></td><td><input aria-label="참여자 1 학번"></td><td><input aria-label="참여자 1 이메일"></td><td></td></tr>
+        <tr><td>2</td><td><input aria-label="참여자 2 이름"></td><td><input aria-label="참여자 2 학번"></td><td><input aria-label="참여자 2 이메일"></td><td></td></tr>
+        <tr><td>3</td><td><input aria-label="참여자 3 이름"></td><td><input aria-label="참여자 3 학번"></td><td><input aria-label="참여자 3 이메일"></td><td></td></tr>
+        <tr><td>4</td><td><input aria-label="참여자 4 이름"></td><td><input aria-label="참여자 4 학번"></td><td><input aria-label="참여자 4 이메일"></td><td></td></tr>
+        <tr><td>5</td><td><input aria-label="참여자 5 이름"></td><td><input aria-label="참여자 5 학번"></td><td><input aria-label="참여자 5 이메일"></td><td></td></tr>
+        <tr><td>6</td><td><input aria-label="참여자 6 이름"></td><td><input aria-label="참여자 6 학번"></td><td><input aria-label="참여자 6 이메일"></td><td></td></tr>
+        <tr><td>7</td><td><input aria-label="참여자 7 이름"></td><td><input aria-label="참여자 7 학번"></td><td><input aria-label="참여자 7 이메일"></td><td></td></tr>
+        <tr><td>8</td><td><input aria-label="참여자 8 이름"></td><td><input aria-label="참여자 8 학번"></td><td><input aria-label="참여자 8 이메일"></td><td></td></tr>
+        <tr><td>9</td><td><input aria-label="참여자 9 이름"></td><td><input aria-label="참여자 9 학번"></td><td><input aria-label="참여자 9 이메일"></td><td></td></tr>
+        <tr><td>10</td><td><input aria-label="참여자 10 이름"></td><td><input aria-label="참여자 10 학번"></td><td><input aria-label="참여자 10 이메일"></td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2>3. 퇴실 전 확인</h2>
+    <div class="check-list">
+      <label><input type="checkbox"> 사용 장비 전원 종료</label>
+      <label><input type="checkbox"> 장비 및 비품 원위치</label>
+      <label><input type="checkbox"> 책상과 주변 정리</label>
+      <label><input type="checkbox"> 쓰레기와 음식물 정리</label>
+      <label><input type="checkbox"> 창문 및 출입문 확인</label>
+      <label><input type="checkbox"> 파손·분실 여부 확인</label>
+    </div>
+
+    <h2>4. 특이사항 및 파손·분실 내용</h2>
+    <table>
+      <tbody>
+        <tr>
+          <td><textarea aria-label="특이사항" placeholder="특이사항이 없으면 ‘없음’으로 작성해 주세요."></textarea></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="confirmation">
+      위와 같이 창의융합프로젝트실을 이용하고 퇴실 점검을 완료하였음을 확인합니다.
+      <div class="confirmation-date">20&nbsp;&nbsp;&nbsp;&nbsp;년&nbsp;&nbsp;&nbsp;&nbsp;월&nbsp;&nbsp;&nbsp;&nbsp;일</div>
+      <div class="signature-row">
+        <span>예약자: ____________________ (서명)</span>
+        <span>확인자: ____________________ (서명)</span>
+      </div>
+    </div>
+
+    <p class="note">
+      작성 후 인쇄하거나 PDF로 저장한 다음, 예약 사이트의 ‘내 예약’에서 이용확인서로 제출해 주세요.
+      업로드 가능한 형식은 PDF, JPG, PNG이며 최대 용량은 10MB입니다.
+    </p>
+  </main>
+</body>
+</html>

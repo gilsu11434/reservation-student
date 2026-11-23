@@ -12,6 +12,7 @@
 - `suggestions.html`: 제목·가린 작성자 공개 및 관리자 전용 본문 열람
 - `styles/style.css`: 전체 공통 디자인
 - `scripts`: Supabase 연결과 페이지 기능
+- `supabase-post-holiday-first-business-day-block.sql`: 주말·공휴일 직후 첫 운영일 예약 차단
 
 ## 최초 설정
 
