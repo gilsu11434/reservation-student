@@ -2001,6 +2001,10 @@ input[type="file"]::file-selector-button {
   white-space: nowrap;
 }
 
+.admin-push-actions button[hidden] {
+  display: none !important;
+}
+
 .admin-calendar-card {
   overflow: hidden;
   padding: 0;

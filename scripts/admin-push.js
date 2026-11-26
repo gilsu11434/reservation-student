@@ -2,13 +2,25 @@ import { supabase } from "./config.js";
 
 const panel = document.getElementById("admin-push-panel");
 const status = document.getElementById("admin-push-status");
-const enableButton = document.getElementById("admin-push-enable");
+const iphoneEnableButton = document.getElementById(
+  "admin-push-enable-iphone"
+);
+const pcEnableButton = document.getElementById("admin-push-enable-pc");
 const testButton = document.getElementById("admin-push-test");
 const disableButton = document.getElementById("admin-push-disable");
 
 let serviceWorkerRegistration = null;
 let activeSubscription = null;
 let initialized = false;
+let busy = false;
+let subscriptionEnabled = false;
+
+function isIOS() {
+  return (
+    /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
 
 function isStandalone() {
   return (
@@ -30,16 +42,33 @@ function setStatus(message, isError = false) {
   status.classList.toggle("is-error", isError);
 }
 
-function setBusy(busy) {
-  enableButton.disabled = busy;
+function setBusy(nextBusy) {
+  refreshButtons(nextBusy);
+}
+
+function refreshButtons(nextBusy = busy) {
+  busy = nextBusy;
+  const ios = isIOS();
+
+  iphoneEnableButton.disabled = busy || subscriptionEnabled || !ios;
+  pcEnableButton.disabled = busy || subscriptionEnabled || ios;
+  iphoneEnableButton.textContent =
+    subscriptionEnabled && ios
+      ? "아이폰 알림 사용 중"
+      : "아이폰 알림 켜기";
+  pcEnableButton.textContent =
+    subscriptionEnabled && !ios
+      ? "PC 알림 사용 중"
+      : "PC 알림 켜기";
+  testButton.hidden = !subscriptionEnabled;
+  disableButton.hidden = !subscriptionEnabled;
   testButton.disabled = busy;
   disableButton.disabled = busy;
 }
 
 function updateButtons(enabled) {
-  enableButton.hidden = enabled;
-  testButton.hidden = !enabled;
-  disableButton.hidden = !enabled;
+  subscriptionEnabled = enabled;
+  refreshButtons(false);
 }
 
 function urlBase64ToUint8Array(value) {
@@ -58,7 +87,33 @@ async function invokePushFunction(action, extra = {}) {
   });
 
   if (error) {
-    throw new Error(error.message || "알림 서버에 연결하지 못했습니다.");
+    let serverMessage = "";
+
+    try {
+      if (error.context instanceof Response) {
+        const body = await error.context.clone().json();
+        serverMessage = body?.error ?? "";
+      }
+    } catch {
+      serverMessage = "";
+    }
+
+    if (serverMessage) {
+      throw new Error(serverMessage);
+    }
+
+    const rawMessage = String(error.message ?? "");
+
+    if (
+      rawMessage.includes("Failed to send a request") ||
+      error.name === "FunctionsFetchError"
+    ) {
+      throw new Error(
+        "알림 서버에 연결하지 못했습니다. admin-push Edge Function을 최신 파일로 다시 배포한 뒤 새로고침해 주세요."
+      );
+    }
+
+    throw new Error(rawMessage || "알림 서버에 연결하지 못했습니다.");
   }
 
   if (data?.error) {
@@ -81,11 +136,23 @@ async function isSubscriptionRegistered(subscription) {
   return data === true;
 }
 
-async function enablePush() {
+async function enablePush(target) {
   setBusy(true);
 
   try {
-    if (!isStandalone()) {
+    if (target === "iphone" && !isIOS()) {
+      throw new Error(
+        "아이폰 알림은 아이폰에서 관리자 페이지를 열어 등록해 주세요."
+      );
+    }
+
+    if (target === "pc" && isIOS()) {
+      throw new Error(
+        "PC 알림은 알림을 받을 PC의 Chrome 또는 Edge에서 관리자 페이지를 열어 등록해 주세요."
+      );
+    }
+
+    if (target === "iphone" && !isStandalone()) {
       throw new Error(
         "아이폰 Safari의 공유 버튼에서 ‘홈 화면에 추가’한 뒤, 홈 화면 아이콘으로 관리자 페이지를 실행해 주세요."
       );
@@ -97,7 +164,9 @@ async function enablePush() {
 
     if (permission !== "granted") {
       throw new Error(
-        "아이폰 알림 권한이 허용되지 않았습니다. 설정 → 알림 → 창의융합실 관리에서 알림을 허용해 주세요."
+        isIOS()
+          ? "아이폰 알림 권한이 허용되지 않았습니다. 설정 → 알림 → 창의융합실 관리에서 알림을 허용해 주세요."
+          : "PC 알림 권한이 허용되지 않았습니다. Chrome 또는 Edge의 사이트 알림 설정에서 허용해 주세요."
       );
     }
 
@@ -130,7 +199,11 @@ async function enablePush() {
     }
 
     updateButtons(true);
-    setStatus("이 아이폰에서 관리자 예약 알림을 사용 중입니다.");
+    setStatus(
+      isIOS()
+        ? "이 아이폰에서 관리자 예약 알림을 사용 중입니다."
+        : "이 PC에서 관리자 예약 알림을 사용 중입니다."
+    );
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -161,7 +234,11 @@ async function disablePush() {
 
     activeSubscription = null;
     updateButtons(false);
-    setStatus("이 아이폰의 관리자 예약 알림이 꺼졌습니다.");
+    setStatus(
+      isIOS()
+        ? "이 아이폰의 관리자 예약 알림이 꺼졌습니다."
+        : "이 PC의 관리자 예약 알림이 꺼졌습니다."
+    );
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -178,13 +255,17 @@ async function sendTestPush() {
       await serviceWorkerRegistration.pushManager.getSubscription();
 
     if (!activeSubscription) {
-      throw new Error("먼저 아이폰 알림을 켜 주세요.");
+      throw new Error("먼저 현재 기기의 관리자 예약 알림을 켜 주세요.");
     }
 
     await invokePushFunction("test", {
       endpoint: activeSubscription.endpoint
     });
-    setStatus("시험 알림을 전송했습니다. 아이폰 알림센터를 확인해 주세요.");
+    setStatus(
+      isIOS()
+        ? "시험 알림을 전송했습니다. 아이폰 알림센터를 확인해 주세요."
+        : "시험 알림을 전송했습니다. Windows 알림센터를 확인해 주세요."
+    );
   } catch (error) {
     setStatus(error.message, true);
   } finally {
@@ -199,13 +280,19 @@ export async function initializeAdminPush() {
 
   initialized = true;
   panel.hidden = false;
-  enableButton.addEventListener("click", enablePush);
+  iphoneEnableButton.addEventListener("click", () => {
+    enablePush("iphone");
+  });
+  pcEnableButton.addEventListener("click", () => {
+    enablePush("pc");
+  });
   testButton.addEventListener("click", sendTestPush);
   disableButton.addEventListener("click", disablePush);
 
   if (!isPushSupported()) {
     updateButtons(false);
-    enableButton.disabled = true;
+    iphoneEnableButton.disabled = true;
+    pcEnableButton.disabled = true;
     setStatus(
       "이 기기 또는 브라우저에서는 웹 푸시 알림을 지원하지 않습니다.",
       true
@@ -229,18 +316,26 @@ export async function initializeAdminPush() {
     updateButtons(registered);
 
     if (registered) {
-      setStatus("이 아이폰에서 관리자 예약 알림을 사용 중입니다.");
+      setStatus(
+        isIOS()
+          ? "이 아이폰에서 관리자 예약 알림을 사용 중입니다."
+          : "이 PC에서 관리자 예약 알림을 사용 중입니다."
+      );
     } else if (Notification.permission === "denied") {
       setStatus(
-        "알림이 차단되어 있습니다. 설정 → 알림 → 창의융합실 관리에서 허용해 주세요.",
+        isIOS()
+          ? "알림이 차단되어 있습니다. 설정 → 알림 → 창의융합실 관리에서 허용해 주세요."
+          : "알림이 차단되어 있습니다. Chrome 또는 Edge의 사이트 알림 설정에서 허용해 주세요.",
         true
       );
-    } else if (!isStandalone()) {
+    } else if (isIOS() && !isStandalone()) {
       setStatus(
         "아이폰에서는 관리자 페이지를 홈 화면에 추가한 뒤 아이콘으로 실행해 주세요."
       );
-    } else {
+    } else if (isIOS()) {
       setStatus("‘아이폰 알림 켜기’를 눌러 관리자 예약 알림을 등록해 주세요.");
+    } else {
+      setStatus("‘PC 알림 켜기’를 눌러 이 PC의 관리자 예약 알림을 등록해 주세요.");
     }
   } catch (error) {
     updateButtons(false);

@@ -17,7 +17,7 @@
 - `supabase-reservation-public-holidays.sql`: 주말·공휴일 및 연휴 직후 첫 운영일 예약 차단
 - `supabase-admin-time-blocks.sql`: 관리자 전용 예약 제한 시간 관리
 - `supabase-admin-push-notifications.sql`: 관리자 아이폰 알림 구독 저장과 권한 설정
-- `supabase/functions/admin-push`: 오전 9시 예약 현황·예약 10분 전 푸시 전송
+- `supabase/functions/admin-push`: 아이폰·PC에 오전 9시 예약 현황과 예약 10분 전 푸시 전송
 
 ## 최초 설정
 
