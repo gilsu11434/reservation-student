@@ -4,6 +4,7 @@ import {
   checkApproved,
   logout
 } from "./config.js";
+import { initializeAdminPush } from "./admin-push.js";
 
 const calendar = document.getElementById(
   "admin-reservation-calendar"
@@ -1732,6 +1733,7 @@ async function initialize() {
       return;
     }
 
+    await initializeAdminPush();
     setVisibleMonthToToday();
     await loadReservations();
   } catch (error) {

@@ -4,8 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="창의융합프로젝트실 관리자 페이지">
+  <meta name="theme-color" content="#10a37f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="창의융합실 관리">
   <title>관리자 - 창의융합프로젝트실</title>
-  <link rel="stylesheet" href="./styles/style.css?v=20261028-admin-time-blocks">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/admin-app-icon-180.png">
+  <link rel="stylesheet" href="./styles/style.css?v=20261126-admin-push">
 </head>
 <body>
   <header class="app-header">
@@ -36,6 +42,32 @@
     </div>
 
     <div id="admin-message" class="message" role="status"></div>
+
+    <section id="admin-push-panel" class="card admin-push-card" hidden>
+      <div class="admin-push-copy">
+        <span class="admin-push-icon" aria-hidden="true">🔔</span>
+        <div>
+          <p class="eyebrow">iPhone notifications</p>
+          <h2>관리자 예약 알림</h2>
+          <p>
+            예약 시작 10분 전과 매일 오전 9시에 오늘의 전체 예약 현황을
+            이 아이폰으로 알려드립니다.
+          </p>
+          <p id="admin-push-status" class="admin-push-status" role="status">
+            알림 상태를 확인하고 있습니다.
+          </p>
+        </div>
+      </div>
+      <div class="admin-push-actions">
+        <button id="admin-push-enable" type="button">아이폰 알림 켜기</button>
+        <button id="admin-push-test" class="button-secondary" type="button" hidden>
+          시험 알림 보내기
+        </button>
+        <button id="admin-push-disable" class="danger-button" type="button" hidden>
+          알림 끄기
+        </button>
+      </div>
+    </section>
 
     <section class="card admin-calendar-card">
       <div class="admin-calendar-toolbar">
@@ -98,6 +130,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="./scripts/admin.js?v=20261028-admin-time-blocks"></script>
+  <script type="module" src="./scripts/admin.js?v=20261126-admin-push"></script>
 </body>
 </html>

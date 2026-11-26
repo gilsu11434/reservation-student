@@ -16,6 +16,8 @@
 - `supabase-certificate-review.sql`: 수료증 경로 저장과 관리자 승인·반려
 - `supabase-reservation-public-holidays.sql`: 주말·공휴일 및 연휴 직후 첫 운영일 예약 차단
 - `supabase-admin-time-blocks.sql`: 관리자 전용 예약 제한 시간 관리
+- `supabase-admin-push-notifications.sql`: 관리자 아이폰 알림 구독 저장과 권한 설정
+- `supabase/functions/admin-push`: 오전 9시 예약 현황·예약 10분 전 푸시 전송
 
 ## 최초 설정
 
@@ -39,8 +41,9 @@
     기존 예약은 그대로 유지되며, 이 SQL을 실행한 뒤 만들어지는 예약부터 새 승인 흐름이 적용됩니다.
 15. 주말·공휴일 및 주말·공휴일에 신청할 때 연휴 직후 첫 운영일 예약을 차단하려면 `supabase-reservation-public-holidays.sql` 전체를 한 번 실행합니다.
 16. 관리자가 특정 시간을 예약 불가로 지정하려면 `supabase-admin-time-blocks.sql` 전체를 한 번 실행합니다.
-17. `scripts/config.js`의 Supabase URL과 Publishable Key가 현재 프로젝트 값인지 확인합니다.
-18. VS Code에서 `index.html`을 열고 Live Server를 실행합니다.
+17. 관리자 아이폰 알림을 사용하려면 `IPHONE-ADMIN-PUSH-SETUP.md`의 순서대로 SQL, Edge Function, Cron을 설정합니다.
+18. `scripts/config.js`의 Supabase URL과 Publishable Key가 현재 프로젝트 값인지 확인합니다.
+19. VS Code에서 `index.html`을 열고 Live Server를 실행합니다.
 
 신규 회원은 가입한 이메일로 로그인합니다. 기존 학번 기반 계정도 `profiles.email`에 저장된 이메일로 로그인할 수 있습니다.
 

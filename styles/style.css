@@ -1930,6 +1930,77 @@ input[type="file"]::file-selector-button {
 }
 
 /* Admin */
+.admin-push-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+  border-color: #b7e2d7;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fbf8 100%);
+}
+
+.admin-push-card[hidden] {
+  display: none;
+}
+
+.admin-push-copy {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.admin-push-copy h2,
+.admin-push-copy p {
+  margin-bottom: 0;
+}
+
+.admin-push-copy h2 {
+  margin-top: 1px;
+}
+
+.admin-push-copy > div > p:not(.eyebrow):not(.admin-push-status) {
+  margin-top: 6px;
+  color: var(--text-soft);
+}
+
+.admin-push-icon {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: var(--brand-dark);
+  background: var(--brand-soft);
+  font-size: 22px;
+}
+
+.admin-push-status {
+  margin-top: 10px !important;
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-push-status.is-error {
+  color: var(--danger-dark);
+}
+
+.admin-push-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-push-actions button {
+  white-space: nowrap;
+}
+
 .admin-calendar-card {
   overflow: hidden;
   padding: 0;
@@ -2995,6 +3066,24 @@ input[type="file"]::file-selector-button {
 
   .admin-calendar-card {
     padding: 0;
+  }
+
+  .admin-push-card,
+  .admin-push-copy {
+    align-items: stretch;
+  }
+
+  .admin-push-card {
+    flex-direction: column;
+  }
+
+  .admin-push-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .admin-push-actions button {
+    flex: 1 1 100%;
   }
 
   .admin-calendar-toolbar {
