@@ -302,8 +302,8 @@ export async function initializeAdminPush() {
 
   try {
     serviceWorkerRegistration = await navigator.serviceWorker.register(
-      "./service-worker.js",
-      { scope: "./" }
+      "./service-worker.js?v=20261127-notification-banner-fix",
+      { scope: "./", updateViaCache: "none" }
     );
     await navigator.serviceWorker.ready;
     activeSubscription =

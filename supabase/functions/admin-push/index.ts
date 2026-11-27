@@ -218,8 +218,8 @@ async function sendTest(request: Request, endpoint: string) {
     },
     JSON.stringify({
       title: "창의융합프로젝트실 관리자",
-      body: "아이폰 관리자 예약 알림이 정상적으로 연결되었습니다.",
-      tag: "admin-push-test",
+      body: "이 기기의 관리자 예약 알림이 팝업으로 정상 표시되었습니다.",
+      tag: `admin-push-test-${Date.now()}`,
       url: "./admin.html"
     }),
     { TTL: 300 }

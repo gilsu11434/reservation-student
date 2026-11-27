@@ -1,3 +1,11 @@
+self.addEventListener("install", () => {
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let payload = {};
 
@@ -15,6 +23,11 @@ self.addEventListener("push", (event) => {
     icon: "./icons/admin-app-icon-192.png",
     badge: "./icons/admin-app-icon-192.png",
     tag: payload.tag || "admin-reservation-notification",
+    renotify: true,
+    requireInteraction: true,
+    silent: false,
+    timestamp: Date.now(),
+    vibrate: [200, 100, 200],
     data: {
       url: payload.url || "./admin.html"
     }
